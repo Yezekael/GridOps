@@ -27,6 +27,15 @@ const UPGRADES := [
 	{"id": "unlock_transpose", "label": "Unlock Transpose", "cost": 15, "card_type": "transpose"},
 ]
 
+const ACHIEVEMENTS := [
+	{"id": "first_win", "label": "First Win", "desc": "Complete a full run"},
+	{"id": "efficient", "label": "Efficient", "desc": "Solve a puzzle with 2+ cards left in hand"},
+	{"id": "full_deck", "label": "Full Deck", "desc": "Have all 8 card types in your deck at once"},
+	{"id": "big_spender", "label": "Big Spender", "desc": "Spend 20+ currency in the shop (lifetime)"},
+	{"id": "veteran", "label": "Veteran", "desc": "Play 10 runs"},
+	{"id": "collector", "label": "Collector", "desc": "Permanently unlock all 8 card types via the shop"},
+]
+
 var grid: Node2D
 var card_hand: HBoxContainer
 var status_label: Label
@@ -42,6 +51,11 @@ var shop_label: Label
 var shop_hand: GridContainer
 var shop_button: Button
 var shop_was_showing_draft: bool = false
+
+var achievements_label: Label
+var achievements_hand: GridContainer
+var achievements_button: Button
+var achievements_was_showing_draft: bool = false
 
 var pending_card_index: int = -1
 var pending_card: Dictionary = {}
@@ -140,8 +154,15 @@ func _ready() -> void:
 	shop_button.pressed.connect(_open_shop)
 	ui.add_child(shop_button)
 
+	achievements_button = Button.new()
+	achievements_button.text = "Achievements"
+	achievements_button.position = Vector2(780, 170)
+	achievements_button.custom_minimum_size = Vector2(140, 40)
+	achievements_button.pressed.connect(_open_achievements)
+	ui.add_child(achievements_button)
+
 	stats_label = Label.new()
-	stats_label.position = Vector2(780, 170)
+	stats_label.position = Vector2(780, 220)
 	stats_label.add_theme_font_size_override("font_size", 14)
 	stats_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.65))
 	ui.add_child(stats_label)
@@ -161,6 +182,21 @@ func _ready() -> void:
 	shop_hand.visible = false
 	ui.add_child(shop_hand)
 
+	achievements_label = Label.new()
+	achievements_label.position = Vector2(300, 150)
+	achievements_label.add_theme_font_size_override("font_size", 20)
+	achievements_label.text = "Achievements"
+	achievements_label.visible = false
+	ui.add_child(achievements_label)
+
+	achievements_hand = GridContainer.new()
+	achievements_hand.position = Vector2(300, 190)
+	achievements_hand.columns = 2
+	achievements_hand.add_theme_constant_override("h_separation", 10)
+	achievements_hand.add_theme_constant_override("v_separation", 10)
+	achievements_hand.visible = false
+	ui.add_child(achievements_hand)
+
 	_start_new_run()
 
 func _start_new_run() -> void:
@@ -175,8 +211,18 @@ func _start_new_run() -> void:
 	save_mgr.data.total_runs += 1
 	save_mgr.save_data()
 	_update_stats_label()
+	if int(save_mgr.data.total_runs) >= 10:
+		_unlock_achievement("veteran")
+	_check_full_deck_achievement()
 
 	_start_new_puzzle()
+
+func _check_full_deck_achievement() -> void:
+	var distinct := {}
+	for card_type in run_deck:
+		distinct[card_type] = true
+	if distinct.size() >= PuzzleGenerator.CARD_TYPES.size():
+		_unlock_achievement("full_deck")
 
 func _update_stats_label() -> void:
 	var d: Dictionary = save_mgr.data
@@ -330,6 +376,8 @@ func _consume_pending_card() -> void:
 	if grid.is_solved():
 		_record_best_puzzle_reached()
 		save_mgr.data.currency = int(save_mgr.data.currency) + 1
+		if card_hand.cards.size() >= 2:
+			_unlock_achievement("efficient")
 		if puzzle_index + 1 >= RUN_LENGTH:
 			status_label.text = "RUN COMPLETE!"
 			sound.play_chime([523.25, 659.25, 783.99, 1046.5], 0.14)
@@ -337,6 +385,7 @@ func _consume_pending_card() -> void:
 			save_mgr.data.currency = int(save_mgr.data.currency) + 3
 			save_mgr.save_data()
 			_update_stats_label()
+			_unlock_achievement("first_win")
 		else:
 			save_mgr.save_data()
 			_update_stats_label()
@@ -455,15 +504,69 @@ func _on_upgrade_purchased(upgrade: Dictionary) -> void:
 	if currency < upgrade.cost:
 		return
 	save_mgr.data.currency = currency - upgrade.cost
+	save_mgr.data.lifetime_currency_spent = int(save_mgr.data.lifetime_currency_spent) + int(upgrade.cost)
 	save_mgr.data.unlocked_starting_cards.append(upgrade.card_type)
 	save_mgr.save_data()
 	_update_stats_label()
 	sound.play_tone(700.0, 0.08)
 	_rebuild_shop()
 
+	if int(save_mgr.data.lifetime_currency_spent) >= 20:
+		_unlock_achievement("big_spender")
+	var unlocked_types := {}
+	for card_type in save_mgr.data.unlocked_starting_cards:
+		unlocked_types[card_type] = true
+	if unlocked_types.size() >= PuzzleGenerator.CARD_TYPES.size():
+		_unlock_achievement("collector")
+
+func _open_achievements() -> void:
+	achievements_was_showing_draft = draft_hand.visible
+	grid.visible = false
+	card_hand.visible = false
+	draft_label.visible = false
+	draft_hand.visible = false
+	_rebuild_achievements()
+	achievements_label.visible = true
+	achievements_hand.visible = true
+
+func _close_achievements() -> void:
+	achievements_label.visible = false
+	achievements_hand.visible = false
+	if achievements_was_showing_draft:
+		_show_draft()
+	else:
+		grid.visible = true
+		card_hand.visible = true
+
+func _rebuild_achievements() -> void:
+	for child in achievements_hand.get_children():
+		child.queue_free()
+
+	var unlocked: Array = save_mgr.data.achievements
+	for achievement in ACHIEVEMENTS:
+		var label := Label.new()
+		var mark: String = "[x]" if achievement.id in unlocked else "[ ]"
+		label.text = "%s %s — %s" % [mark, achievement.label, achievement.desc]
+		label.custom_minimum_size = Vector2(280, 30)
+		achievements_hand.add_child(label)
+
+	var close_btn := Button.new()
+	close_btn.text = "Close"
+	close_btn.custom_minimum_size = Vector2(150, 50)
+	close_btn.pressed.connect(_close_achievements)
+	achievements_hand.add_child(close_btn)
+
+func _unlock_achievement(id: String) -> void:
+	if id in save_mgr.data.achievements:
+		return
+	save_mgr.data.achievements.append(id)
+	save_mgr.save_data()
+	sound.play_chime([659.25, 880.0], 0.1)
+
 func _on_draft_picked(card_type: String) -> void:
 	sound.play_tone(600.0, 0.06)
 	run_deck.append(card_type)
+	_check_full_deck_achievement()
 	_advance_after_draft()
 
 func _on_draft_skipped() -> void:
