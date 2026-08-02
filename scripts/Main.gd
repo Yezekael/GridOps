@@ -246,8 +246,18 @@ func _ready() -> void:
 
 	_show_main_menu()
 
-func _show_main_menu() -> void:
+func _hide_all_views() -> void:
+	main_menu.visible = false
 	combat_view.visible = false
+	draft_label.visible = false
+	draft_hand.visible = false
+	shop_label.visible = false
+	shop_hand.visible = false
+	achievements_label.visible = false
+	achievements_hand.visible = false
+
+func _show_main_menu() -> void:
+	_hide_all_views()
 	main_menu.visible = true
 
 func _on_quit_pressed() -> void:
@@ -354,6 +364,7 @@ func _enemy_config_for_encounter(index: int) -> Dictionary:
 
 func _start_new_encounter() -> void:
 	end_turn_button.disabled = false
+	_hide_all_views()
 	combat_view.visible = true
 
 	var enemy_config: Dictionary = _enemy_config_for_encounter(encounter_index)
@@ -472,7 +483,7 @@ func _on_combat_lost() -> void:
 		card_hand.set_disabled(i, true)
 
 func _show_draft() -> void:
-	combat_view.visible = false
+	_hide_all_views()
 
 	draft_label.text = "Choose a card to add to your deck:"
 
@@ -556,19 +567,19 @@ func _pick_random_distinct(pool: Array, count: int) -> Array:
 		remaining.remove_at(idx)
 	return picked
 
+func _capture_view_before_overlay() -> void:
+	if not shop_label.visible and not achievements_label.visible:
+		view_before_overlay = "menu" if main_menu.visible else "combat"
+
 func _open_shop() -> void:
-	view_before_overlay = "menu" if main_menu.visible else "combat"
-	main_menu.visible = false
-	combat_view.visible = false
-	draft_label.visible = false
-	draft_hand.visible = false
+	_capture_view_before_overlay()
+	_hide_all_views()
 	_rebuild_shop()
 	shop_label.visible = true
 	shop_hand.visible = true
 
 func _close_shop() -> void:
-	shop_label.visible = false
-	shop_hand.visible = false
+	_hide_all_views()
 	_restore_previous_view()
 
 func _rebuild_shop() -> void:
@@ -613,18 +624,14 @@ func _on_upgrade_purchased(upgrade: Dictionary) -> void:
 		_unlock_achievement("collector")
 
 func _open_achievements() -> void:
-	view_before_overlay = "menu" if main_menu.visible else "combat"
-	main_menu.visible = false
-	combat_view.visible = false
-	draft_label.visible = false
-	draft_hand.visible = false
+	_capture_view_before_overlay()
+	_hide_all_views()
 	_rebuild_achievements()
 	achievements_label.visible = true
 	achievements_hand.visible = true
 
 func _close_achievements() -> void:
-	achievements_label.visible = false
-	achievements_hand.visible = false
+	_hide_all_views()
 	_restore_previous_view()
 
 func _restore_previous_view() -> void:
