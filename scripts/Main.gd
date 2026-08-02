@@ -274,6 +274,8 @@ func _show_draft() -> void:
 	grid.visible = false
 	card_hand.visible = false
 
+	draft_label.text = "Choose a card to add to your deck:"
+
 	var offered: Array = _pick_random_distinct(PuzzleGenerator.CARD_TYPES, 3)
 	for child in draft_hand.get_children():
 		child.queue_free()
@@ -290,8 +292,44 @@ func _show_draft() -> void:
 	skip_btn.pressed.connect(_on_draft_skipped)
 	draft_hand.add_child(skip_btn)
 
+	if run_deck.size() > 1:
+		var remove_btn := Button.new()
+		remove_btn.text = "Remove a Card"
+		remove_btn.custom_minimum_size = Vector2(140, 60)
+		remove_btn.pressed.connect(_show_draft_removal_options)
+		draft_hand.add_child(remove_btn)
+
 	draft_label.visible = true
 	draft_hand.visible = true
+
+func _show_draft_removal_options() -> void:
+	draft_label.text = "Choose a card to remove from your deck:"
+	for child in draft_hand.get_children():
+		child.queue_free()
+
+	var counts: Dictionary = {}
+	for card_type in run_deck:
+		counts[card_type] = counts.get(card_type, 0) + 1
+
+	for card_type in counts.keys():
+		var btn := Button.new()
+		btn.text = "%s (x%d)" % [CardHandScript.label_for({"type": card_type}), counts[card_type]]
+		btn.custom_minimum_size = Vector2(150, 60)
+		btn.pressed.connect(_on_card_removed.bind(card_type))
+		draft_hand.add_child(btn)
+
+	var back_btn := Button.new()
+	back_btn.text = "Back"
+	back_btn.custom_minimum_size = Vector2(100, 60)
+	back_btn.pressed.connect(_show_draft)
+	draft_hand.add_child(back_btn)
+
+func _on_card_removed(card_type: String) -> void:
+	var idx: int = run_deck.find(card_type)
+	if idx >= 0:
+		run_deck.remove_at(idx)
+	sound.play_tone(250.0, 0.1)
+	_advance_after_draft()
 
 func _on_draft_picked(card_type: String) -> void:
 	sound.play_tone(600.0, 0.06)
