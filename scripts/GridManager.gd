@@ -73,11 +73,23 @@ func is_solved() -> bool:
 func _draw() -> void:
 	if tile_states.is_empty():
 		return
+
+	var font := ThemeDB.fallback_font
+	var font_size := 16
+	var step := TILE_SIZE + TILE_GAP
+
+	for x in grid_size.x:
+		var col_label_pos := Vector2(x * step + TILE_SIZE / 2.0 - 4, -12)
+		draw_string(font, col_label_pos, str(x + 1), HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(0.6, 0.6, 0.65))
+	for y in grid_size.y:
+		var row_label_pos := Vector2(-24, y * step + TILE_SIZE / 2.0 + 5)
+		draw_string(font, row_label_pos, str(y + 1), HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(0.6, 0.6, 0.65))
+
 	for y in grid_size.y:
 		for x in grid_size.x:
 			var rect := Rect2(
-				x * (TILE_SIZE + TILE_GAP),
-				y * (TILE_SIZE + TILE_GAP),
+				x * step,
+				y * step,
 				TILE_SIZE,
 				TILE_SIZE
 			)
@@ -87,6 +99,16 @@ func _draw() -> void:
 			draw_rect(rect, fill_color, true)
 			var border_color: Color = Color(0.3, 0.9, 0.4) if matches_target else Color(0.6, 0.15, 0.15)
 			draw_rect(rect, border_color, false, 2.0)
+
+			# Match/mismatch is also shown as a shape (not just border color)
+			# so it reads correctly for colorblind players.
+			var marker_center := rect.position + Vector2(TILE_SIZE - 10, 10)
+			var marker_color := Color(1.0, 1.0, 1.0, 0.85) if on else Color(0.0, 0.0, 0.0, 0.85)
+			if matches_target:
+				draw_circle(marker_center, 5.0, marker_color)
+			else:
+				draw_line(marker_center + Vector2(-5, -5), marker_center + Vector2(5, 5), marker_color, 2.0)
+				draw_line(marker_center + Vector2(-5, 5), marker_center + Vector2(5, -5), marker_color, 2.0)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if tile_states.is_empty():
