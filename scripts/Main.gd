@@ -256,11 +256,23 @@ func _show_draft() -> void:
 		btn.pressed.connect(_on_draft_picked.bind(card_type))
 		draft_hand.add_child(btn)
 
+	var skip_btn := Button.new()
+	skip_btn.text = "Skip"
+	skip_btn.custom_minimum_size = Vector2(120, 60)
+	skip_btn.pressed.connect(_on_draft_skipped)
+	draft_hand.add_child(skip_btn)
+
 	draft_label.visible = true
 	draft_hand.visible = true
 
 func _on_draft_picked(card_type: String) -> void:
 	run_deck.append(card_type)
+	_advance_after_draft()
+
+func _on_draft_skipped() -> void:
+	_advance_after_draft()
+
+func _advance_after_draft() -> void:
 	puzzle_index += 1
 	draft_label.visible = false
 	draft_hand.visible = false
