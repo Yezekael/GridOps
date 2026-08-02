@@ -7,6 +7,7 @@ const SoundManagerScript := preload("res://scripts/SoundManager.gd")
 const RUN_LENGTH := 6
 const SCRAMBLE_COUNT_BASE := 4
 const SCRAMBLE_COUNT_CAP := 9
+const BOSS_SCRAMBLE_BONUS := 2
 const STARTING_DECK := ["invert", "invert", "swap"]
 
 const PATTERN_NAMES := [
@@ -120,12 +121,23 @@ func _start_new_run() -> void:
 	_start_new_puzzle()
 
 func _grid_size_for_puzzle(index: int) -> Vector2i:
-	if index < 2:
+	if index == RUN_LENGTH - 1:
+		return Vector2i(7, 7)
+	elif index < 2:
 		return Vector2i(4, 4)
 	elif index < 4:
 		return Vector2i(5, 5)
 	else:
 		return Vector2i(6, 6)
+
+func _scramble_count_for_puzzle(index: int) -> int:
+	var count: int = min(SCRAMBLE_COUNT_BASE + index, SCRAMBLE_COUNT_CAP)
+	if index == RUN_LENGTH - 1:
+		count += BOSS_SCRAMBLE_BONUS
+	return count
+
+func _is_boss_puzzle(index: int) -> bool:
+	return index == RUN_LENGTH - 1
 
 func _generate_pattern(pattern_name: String, size: Vector2i) -> Array:
 	var pattern: Array = []
@@ -179,7 +191,7 @@ func _start_new_puzzle() -> void:
 	last_pattern_name = pattern_name
 	current_target = _generate_pattern(pattern_name, current_grid_size)
 
-	var scramble_count: int = min(SCRAMBLE_COUNT_BASE + puzzle_index, SCRAMBLE_COUNT_CAP)
+	var scramble_count: int = _scramble_count_for_puzzle(puzzle_index)
 	var result: Dictionary = PuzzleGenerator.generate(current_grid_size, current_target, scramble_count, rng, run_deck)
 
 	original_initial = []
@@ -190,7 +202,12 @@ func _start_new_puzzle() -> void:
 	grid.setup(current_grid_size, result.initial, current_target)
 	card_hand.set_hand(result.hand)
 	status_label.text = ""
-	progress_label.text = "Puzzle %d / %d" % [puzzle_index + 1, RUN_LENGTH]
+	if _is_boss_puzzle(puzzle_index):
+		progress_label.text = "Puzzle %d / %d — BOSS PUZZLE" % [puzzle_index + 1, RUN_LENGTH]
+		progress_label.add_theme_color_override("font_color", Color(0.9, 0.3, 0.3))
+	else:
+		progress_label.text = "Puzzle %d / %d" % [puzzle_index + 1, RUN_LENGTH]
+		progress_label.remove_theme_color_override("font_color")
 	_update_labels()
 
 func _on_card_selected(index: int) -> void:
