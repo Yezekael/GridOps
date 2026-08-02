@@ -34,6 +34,9 @@ var enemy_hp: int = 0
 var enemy_name: String = "Enemy"
 var enemy_intents: Array = []
 var current_intent: Dictionary = {}
+var enemy_block: int = 0
+var enemy_rage: int = 0
+var enemy_rage_per_turn: int = 0
 
 var draw_pile: Array = []
 var discard_pile: Array = []
@@ -57,6 +60,9 @@ func start_combat(deck: Array, enemy_config: Dictionary) -> void:
 	enemy_hp = enemy_max_hp
 	enemy_name = enemy_config.get("name", "Enemy")
 	enemy_intents = enemy_config.intents
+	enemy_block = 0
+	enemy_rage = 0
+	enemy_rage_per_turn = int(enemy_config.get("rage_per_turn", 0))
 	_pick_new_intent()
 
 	start_turn()
@@ -98,7 +104,10 @@ func play_card(index: int) -> bool:
 
 	for i in int(def.get("hits", 1)):
 		if def.has("damage"):
-			enemy_hp = max(0, enemy_hp - int(def.damage))
+			var dmg: int = int(def.damage)
+			var absorbed: int = min(enemy_block, dmg)
+			enemy_block -= absorbed
+			enemy_hp = max(0, enemy_hp - (dmg - absorbed))
 	if def.has("block"):
 		player_block += int(def.block)
 	if def.has("heal"):
@@ -118,12 +127,21 @@ func end_turn() -> void:
 	discard_pile.append_array(hand)
 	hand = []
 
-	var dmg: int = int(current_intent.get("damage", 0))
-	var absorbed: int = min(player_block, dmg)
-	var taken: int = dmg - absorbed
-	player_block -= absorbed
-	player_hp = max(0, player_hp - taken)
-	damage_taken_this_combat += taken
+	match current_intent.get("type", "attack"):
+		"attack":
+			var dmg: int = int(current_intent.get("damage", 0)) + enemy_rage
+			var absorbed: int = min(player_block, dmg)
+			var taken: int = dmg - absorbed
+			player_block -= absorbed
+			player_hp = max(0, player_hp - taken)
+			damage_taken_this_combat += taken
+		"heal":
+			enemy_hp = min(enemy_max_hp, enemy_hp + int(current_intent.get("heal", 0)))
+		"defend":
+			enemy_block += int(current_intent.get("block", 0))
+
+	if enemy_rage_per_turn > 0:
+		enemy_rage += enemy_rage_per_turn
 
 	turn_ended.emit()
 
@@ -138,5 +156,13 @@ func _pick_new_intent() -> void:
 	current_intent = enemy_intents[rng.randi_range(0, enemy_intents.size() - 1)]
 
 func intent_description() -> String:
-	var dmg: int = int(current_intent.get("damage", 0))
-	return "Attack for %d" % dmg
+	match current_intent.get("type", "attack"):
+		"attack":
+			var dmg: int = int(current_intent.get("damage", 0)) + enemy_rage
+			return "Attack for %d" % dmg
+		"heal":
+			return "Heal %d" % int(current_intent.get("heal", 0))
+		"defend":
+			return "Defend (+%d block)" % int(current_intent.get("block", 0))
+		_:
+			return "Unknown"

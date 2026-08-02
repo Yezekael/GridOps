@@ -260,15 +260,60 @@ func _is_boss_encounter(index: int) -> bool:
 func _enemy_config_for_encounter(index: int) -> Dictionary:
 	if _is_boss_encounter(index):
 		return {
-			"name": "Boss",
-			"hp": 85,
-			"intents": [{"type": "attack", "damage": 10}, {"type": "attack", "damage": 18}],
+			"name": "Warlord",
+			"hp": 70,
+			"intents": [
+				{"type": "attack", "damage": 8},
+				{"type": "attack", "damage": 14},
+				{"type": "defend", "block": 6},
+			],
+			"rage_per_turn": 1,
 		}
-	return {
-		"name": "Enemy %d" % (index + 1),
-		"hp": 20 + index * 8,
-		"intents": [{"type": "attack", "damage": 5 + index * 2}],
-	}
+
+	var base_hp: int = 20 + index * 8
+	var base_dmg: int = 5 + index * 2
+
+	match index:
+		0:
+			return {
+				"name": "Grunt",
+				"hp": base_hp,
+				"intents": [{"type": "attack", "damage": base_dmg}],
+			}
+		1:
+			return {
+				"name": "Skirmisher",
+				"hp": base_hp,
+				"intents": [
+					{"type": "attack", "damage": base_dmg - 2},
+					{"type": "attack", "damage": base_dmg + 6},
+				],
+			}
+		2:
+			return {
+				"name": "Guardian",
+				"hp": base_hp + 6,
+				"intents": [
+					{"type": "attack", "damage": base_dmg},
+					{"type": "defend", "block": 8},
+				],
+			}
+		3:
+			return {
+				"name": "Regenerator",
+				"hp": base_hp,
+				"intents": [
+					{"type": "attack", "damage": base_dmg},
+					{"type": "heal", "heal": 8},
+				],
+			}
+		_:
+			return {
+				"name": "Berserker",
+				"hp": base_hp,
+				"intents": [{"type": "attack", "damage": base_dmg}],
+				"rage_per_turn": 3,
+			}
 
 func _start_new_encounter() -> void:
 	end_turn_button.disabled = false
@@ -292,7 +337,7 @@ func _refresh_combat_ui() -> void:
 
 	enemy_hp_bar.max_value = combat.enemy_max_hp
 	enemy_hp_bar.value = combat.enemy_hp
-	enemy_label.text = "%s: %d/%d HP" % [combat.enemy_name, combat.enemy_hp, combat.enemy_max_hp]
+	enemy_label.text = "%s: %d/%d HP  (Block: %d)" % [combat.enemy_name, combat.enemy_hp, combat.enemy_max_hp, combat.enemy_block]
 
 	intent_label.text = "Enemy intends: %s" % combat.intent_description()
 	energy_label.text = "Energy: %d/%d" % [combat.energy, CombatManagerScript.ENERGY_PER_TURN]
