@@ -7,15 +7,26 @@ extends RefCounted
 const CARD_TYPES := ["invert", "swap", "mirror_row", "mirror_col", "rotate180"]
 
 static func generate(grid_size: Vector2i, target: Array, scramble_count: int, rng: RandomNumberGenerator) -> Dictionary:
+	# A scramble can accidentally cancel itself out (e.g. rotate180 drawn
+	# twice, or mirror_row on the same row twice), leaving the puzzle
+	# already solved. Reject and retry those instead of dealing a dead hand.
 	var state: Array = []
-	for row in target:
-		state.append(row.duplicate(true))
-
 	var scramble_ops: Array = []
-	for i in range(scramble_count):
-		var op := _random_op(grid_size, rng)
-		_apply_op(state, grid_size, op)
-		scramble_ops.append(op)
+	var attempts := 0
+	while true:
+		state = []
+		for row in target:
+			state.append(row.duplicate(true))
+
+		scramble_ops = []
+		for i in range(scramble_count):
+			var op := _random_op(grid_size, rng)
+			_apply_op(state, grid_size, op)
+			scramble_ops.append(op)
+
+		attempts += 1
+		if state != target or attempts >= 20:
+			break
 
 	scramble_ops.reverse()
 	return {
