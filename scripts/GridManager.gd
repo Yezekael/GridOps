@@ -19,6 +19,50 @@ func invert(x: int, y: int) -> void:
 	tile_states[y][x] = 1 - tile_states[y][x]
 	queue_redraw()
 
+func swap(x1: int, y1: int, x2: int, y2: int) -> void:
+	var tmp = tile_states[y1][x1]
+	tile_states[y1][x1] = tile_states[y2][x2]
+	tile_states[y2][x2] = tmp
+	queue_redraw()
+
+func mirror_row(row: int) -> void:
+	tile_states[row].reverse()
+	queue_redraw()
+
+func mirror_col(col: int) -> void:
+	var top := 0
+	var bottom := grid_size.y - 1
+	while top < bottom:
+		var tmp = tile_states[top][col]
+		tile_states[top][col] = tile_states[bottom][col]
+		tile_states[bottom][col] = tmp
+		top += 1
+		bottom -= 1
+	queue_redraw()
+
+func rotate180() -> void:
+	var new_states := []
+	for y in grid_size.y:
+		var row := []
+		for x in grid_size.x:
+			row.append(tile_states[grid_size.y - 1 - y][grid_size.x - 1 - x])
+		new_states.append(row)
+	tile_states = new_states
+	queue_redraw()
+
+func apply_card(card: Dictionary) -> void:
+	match card.type:
+		"invert":
+			invert(card.params.x, card.params.y)
+		"swap":
+			swap(card.params.x1, card.params.y1, card.params.x2, card.params.y2)
+		"mirror_row":
+			mirror_row(card.params.row)
+		"mirror_col":
+			mirror_col(card.params.col)
+		"rotate180":
+			rotate180()
+
 func is_solved() -> bool:
 	for y in grid_size.y:
 		for x in grid_size.x:
