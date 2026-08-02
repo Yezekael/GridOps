@@ -5,7 +5,11 @@ const CardHandScript := preload("res://scripts/CardHand.gd")
 const SoundManagerScript := preload("res://scripts/SoundManager.gd")
 const SaveManagerScript := preload("res://scripts/SaveManager.gd")
 
-const RUN_LENGTH := 6
+const TOTAL_ACTS := 3
+const ACT_LENGTH := 6
+const RUN_LENGTH := TOTAL_ACTS * ACT_LENGTH
+const ACT_RANK_PREFIX := ["", "Veteran ", "Elite "]
+const BOSS_NAMES := ["Warlord", "Overlord", "Voidlord"]
 const STARTING_DECK := ["strike", "strike", "strike", "block", "block"]
 
 const UPGRADES := [
@@ -334,64 +338,70 @@ func _record_best_encounter_reached() -> void:
 		_update_stats_label()
 
 func _is_boss_encounter(index: int) -> bool:
-	return index == RUN_LENGTH - 1
+	return (index % ACT_LENGTH) == ACT_LENGTH - 1
 
 func _enemy_config_for_encounter(index: int) -> Dictionary:
+	var act_index: int = index / ACT_LENGTH
+	var local_index: int = index % ACT_LENGTH
+	var act_mult: float = 1.0 + act_index * 0.6
+	var prefix: String = ACT_RANK_PREFIX[act_index] if act_index < ACT_RANK_PREFIX.size() else ""
+
 	if _is_boss_encounter(index):
+		var boss_name: String = BOSS_NAMES[act_index] if act_index < BOSS_NAMES.size() else "Warlord"
 		return {
-			"name": "Warlord",
-			"hp": 70,
+			"name": boss_name,
+			"hp": int(70 * act_mult),
 			"intents": [
-				{"type": "attack", "damage": 8},
-				{"type": "attack", "damage": 14},
-				{"type": "defend", "block": 6},
+				{"type": "attack", "damage": int(8 * act_mult)},
+				{"type": "attack", "damage": int(14 * act_mult)},
+				{"type": "defend", "block": int(6 * act_mult)},
 			],
-			"rage_per_turn": 1,
+			"rage_per_turn": max(1, int(act_mult)),
 		}
 
-	var base_hp: int = 20 + index * 8
-	var base_dmg: int = 5 + index * 2
+	var base_hp: int = int((20 + local_index * 8) * act_mult)
+	var base_dmg: int = int((5 + local_index * 2) * act_mult)
 
-	match index:
+	match local_index:
 		0:
 			return {
-				"name": "Grunt",
+				"name": prefix + "Grunt",
 				"hp": base_hp,
 				"intents": [{"type": "attack", "damage": base_dmg}],
 			}
 		1:
 			return {
-				"name": "Skirmisher",
+				"name": prefix + "Skirmisher",
 				"hp": base_hp,
 				"intents": [
-					{"type": "attack", "damage": base_dmg - 2},
+					{"type": "attack", "damage": max(1, base_dmg - 2)},
 					{"type": "attack", "damage": base_dmg + 6},
 				],
 			}
 		2:
 			return {
-				"name": "Guardian",
+				"name": prefix + "Guardian",
 				"hp": base_hp + 6,
 				"intents": [
 					{"type": "attack", "damage": base_dmg},
-					{"type": "defend", "block": 8},
+					{"type": "defend", "block": int(8 * act_mult)},
 				],
 			}
 		3:
 			return {
-				"name": "Regenerator",
+				"name": prefix + "Regenerator",
 				"hp": base_hp,
 				"intents": [
 					{"type": "attack", "damage": base_dmg},
-					{"type": "heal", "heal": 8},
+					{"type": "heal", "heal": int(8 * act_mult)},
 				],
 			}
 		_:
 			return {
-				"name": "Berserker",
+				"name": prefix + "Berserker",
 				"hp": base_hp,
 				"intents": [{"type": "attack", "damage": base_dmg}],
-				"rage_per_turn": 3,
+				"rage_per_turn": max(1, int(3 * act_mult)),
 			}
 
 func _start_new_encounter() -> void:
@@ -402,11 +412,14 @@ func _start_new_encounter() -> void:
 	var enemy_config: Dictionary = _enemy_config_for_encounter(encounter_index)
 	combat.start_combat(run_deck, enemy_config)
 	status_label.text = ""
+
+	var act_index: int = encounter_index / ACT_LENGTH
+	var local_index: int = encounter_index % ACT_LENGTH
 	if _is_boss_encounter(encounter_index):
-		progress_label.text = "Encounter %d / %d — BOSS FIGHT" % [encounter_index + 1, RUN_LENGTH]
+		progress_label.text = "Act %d — Fight %d/%d — BOSS FIGHT" % [act_index + 1, local_index + 1, ACT_LENGTH]
 		progress_label.add_theme_color_override("font_color", Color(0.9, 0.3, 0.3))
 	else:
-		progress_label.text = "Encounter %d / %d" % [encounter_index + 1, RUN_LENGTH]
+		progress_label.text = "Act %d — Fight %d/%d" % [act_index + 1, local_index + 1, ACT_LENGTH]
 		progress_label.remove_theme_color_override("font_color")
 	_refresh_combat_ui()
 
@@ -501,8 +514,12 @@ func _on_combat_won() -> void:
 	else:
 		save_mgr.save_data()
 		_update_stats_label()
-		status_label.text = "Victory!"
-		sound.play_chime([523.25, 659.25, 783.99], 0.12)
+		if _is_boss_encounter(encounter_index):
+			status_label.text = "Act %d Complete!" % (encounter_index / ACT_LENGTH + 1)
+			sound.play_chime([523.25, 659.25, 783.99, 1046.5], 0.14)
+		else:
+			status_label.text = "Victory!"
+			sound.play_chime([523.25, 659.25, 783.99], 0.12)
 		_show_draft()
 
 func _on_combat_lost() -> void:
