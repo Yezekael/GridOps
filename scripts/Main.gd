@@ -4,61 +4,14 @@ const PuzzleGenerator := preload("res://scripts/PuzzleGenerator.gd")
 const CardHandScript := preload("res://scripts/CardHand.gd")
 const SoundManagerScript := preload("res://scripts/SoundManager.gd")
 
-const GRID_SIZE := Vector2i(4, 4)
 const RUN_LENGTH := 6
 const SCRAMBLE_COUNT_BASE := 4
 const SCRAMBLE_COUNT_CAP := 9
 const STARTING_DECK := ["invert", "invert", "swap"]
 
-const TARGET_PATTERNS := [
-	[
-		[1, 0, 0, 1],
-		[0, 1, 1, 0],
-		[0, 1, 1, 0],
-		[1, 0, 0, 1],
-	],
-	[
-		[1, 0, 1, 0],
-		[0, 1, 0, 1],
-		[1, 0, 1, 0],
-		[0, 1, 0, 1],
-	],
-	[
-		[1, 1, 1, 1],
-		[1, 0, 0, 1],
-		[1, 0, 0, 1],
-		[1, 1, 1, 1],
-	],
-	[
-		[1, 1, 0, 0],
-		[1, 1, 0, 0],
-		[1, 1, 0, 0],
-		[1, 1, 0, 0],
-	],
-	[
-		[1, 1, 1, 1],
-		[1, 1, 1, 1],
-		[0, 0, 0, 0],
-		[0, 0, 0, 0],
-	],
-	[
-		[1, 0, 0, 1],
-		[0, 0, 0, 0],
-		[0, 0, 0, 0],
-		[1, 0, 0, 1],
-	],
-	[
-		[0, 1, 1, 0],
-		[1, 1, 1, 1],
-		[1, 1, 1, 1],
-		[0, 1, 1, 0],
-	],
-	[
-		[1, 0, 0, 0],
-		[0, 1, 0, 0],
-		[0, 0, 1, 0],
-		[0, 0, 0, 1],
-	],
+const PATTERN_NAMES := [
+	"x", "checkerboard", "frame", "half_left",
+	"half_top", "corners", "diamond", "diagonal",
 ]
 
 var grid: Node2D
@@ -79,7 +32,8 @@ var pending_clicks: Array = []
 var run_deck: Array = []
 var puzzle_index: int = 0
 var current_target: Array = []
-var last_pattern_index: int = -1
+var current_grid_size: Vector2i = Vector2i(4, 4)
+var last_pattern_name: String = ""
 
 var original_initial: Array = []
 var solution_ops: Array = []
@@ -160,10 +114,50 @@ func _ready() -> void:
 func _start_new_run() -> void:
 	run_deck = STARTING_DECK.duplicate()
 	puzzle_index = 0
-	last_pattern_index = -1
+	last_pattern_name = ""
 	draft_label.visible = false
 	draft_hand.visible = false
 	_start_new_puzzle()
+
+func _grid_size_for_puzzle(index: int) -> Vector2i:
+	if index < 2:
+		return Vector2i(4, 4)
+	elif index < 4:
+		return Vector2i(5, 5)
+	else:
+		return Vector2i(6, 6)
+
+func _generate_pattern(pattern_name: String, size: Vector2i) -> Array:
+	var pattern: Array = []
+	for y in size.y:
+		var row: Array = []
+		for x in size.x:
+			row.append(1 if _pattern_cell(pattern_name, x, y, size) else 0)
+		pattern.append(row)
+	return pattern
+
+func _pattern_cell(pattern_name: String, x: int, y: int, size: Vector2i) -> bool:
+	match pattern_name:
+		"x":
+			return x == y or x == (size.x - 1 - y)
+		"checkerboard":
+			return (x + y) % 2 == 0
+		"frame":
+			return x == 0 or x == size.x - 1 or y == 0 or y == size.y - 1
+		"half_left":
+			return x < int(ceil(size.x / 2.0))
+		"half_top":
+			return y < int(ceil(size.y / 2.0))
+		"corners":
+			return (x == 0 or x == size.x - 1) and (y == 0 or y == size.y - 1)
+		"diamond":
+			var cx: float = (size.x - 1) / 2.0
+			var cy: float = (size.y - 1) / 2.0
+			return absf(x - cx) + absf(y - cy) <= size.x / 2.0
+		"diagonal":
+			return x == y
+		_:
+			return false
 
 func _start_new_puzzle() -> void:
 	puzzle_token += 1
@@ -176,22 +170,24 @@ func _start_new_puzzle() -> void:
 	grid.visible = true
 	card_hand.visible = true
 
-	var pattern_index: int = rng.randi_range(0, TARGET_PATTERNS.size() - 1)
-	if TARGET_PATTERNS.size() > 1:
-		while pattern_index == last_pattern_index:
-			pattern_index = rng.randi_range(0, TARGET_PATTERNS.size() - 1)
-	last_pattern_index = pattern_index
-	current_target = TARGET_PATTERNS[pattern_index]
+	current_grid_size = _grid_size_for_puzzle(puzzle_index)
+
+	var pattern_name: String = PATTERN_NAMES[rng.randi_range(0, PATTERN_NAMES.size() - 1)]
+	if PATTERN_NAMES.size() > 1:
+		while pattern_name == last_pattern_name:
+			pattern_name = PATTERN_NAMES[rng.randi_range(0, PATTERN_NAMES.size() - 1)]
+	last_pattern_name = pattern_name
+	current_target = _generate_pattern(pattern_name, current_grid_size)
 
 	var scramble_count: int = min(SCRAMBLE_COUNT_BASE + puzzle_index, SCRAMBLE_COUNT_CAP)
-	var result: Dictionary = PuzzleGenerator.generate(GRID_SIZE, current_target, scramble_count, rng, run_deck)
+	var result: Dictionary = PuzzleGenerator.generate(current_grid_size, current_target, scramble_count, rng, run_deck)
 
 	original_initial = []
 	for row in result.initial:
 		original_initial.append(row.duplicate(true))
 	solution_ops = result.hand.duplicate(true)
 
-	grid.setup(GRID_SIZE, result.initial, current_target)
+	grid.setup(current_grid_size, result.initial, current_target)
 	card_hand.set_hand(result.hand)
 	status_label.text = ""
 	progress_label.text = "Puzzle %d / %d" % [puzzle_index + 1, RUN_LENGTH]
@@ -313,7 +309,7 @@ func _on_solve_pressed() -> void:
 	var replay_state: Array = []
 	for row in original_initial:
 		replay_state.append(row.duplicate(true))
-	grid.setup(GRID_SIZE, replay_state, current_target)
+	grid.setup(current_grid_size, replay_state, current_target)
 	status_label.text = "Replaying solution..."
 
 	for op in solution_ops:
