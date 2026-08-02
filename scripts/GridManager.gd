@@ -8,26 +8,30 @@ const TILE_GAP := 4
 var grid_size: Vector2i = Vector2i(4, 4)
 var tile_states: Array = []
 var target_states: Array = []
+var visual_values: Array = []
 
 func setup(size: Vector2i, initial: Array, target: Array) -> void:
 	grid_size = size
 	tile_states = initial.duplicate(true)
 	target_states = target.duplicate(true)
+	visual_values = []
+	for y in grid_size.y:
+		var row := []
+		for x in grid_size.x:
+			row.append(float(tile_states[y][x]))
+		visual_values.append(row)
 	queue_redraw()
 
 func invert(x: int, y: int) -> void:
 	tile_states[y][x] = 1 - tile_states[y][x]
-	queue_redraw()
 
 func swap(x1: int, y1: int, x2: int, y2: int) -> void:
 	var tmp = tile_states[y1][x1]
 	tile_states[y1][x1] = tile_states[y2][x2]
 	tile_states[y2][x2] = tmp
-	queue_redraw()
 
 func mirror_row(row: int) -> void:
 	tile_states[row].reverse()
-	queue_redraw()
 
 func mirror_col(col: int) -> void:
 	var top := 0
@@ -38,7 +42,6 @@ func mirror_col(col: int) -> void:
 		tile_states[bottom][col] = tmp
 		top += 1
 		bottom -= 1
-	queue_redraw()
 
 func rotate180() -> void:
 	var new_states := []
@@ -48,9 +51,12 @@ func rotate180() -> void:
 			row.append(tile_states[grid_size.y - 1 - y][grid_size.x - 1 - x])
 		new_states.append(row)
 	tile_states = new_states
-	queue_redraw()
 
 func apply_card(card: Dictionary) -> void:
+	var before: Array = []
+	for row in tile_states:
+		before.append(row.duplicate(true))
+
 	match card.type:
 		"invert":
 			invert(card.params.x, card.params.y)
@@ -62,6 +68,22 @@ func apply_card(card: Dictionary) -> void:
 			mirror_col(card.params.col)
 		"rotate180":
 			rotate180()
+
+	_animate_changes(before)
+
+func _animate_changes(before: Array) -> void:
+	for y in grid_size.y:
+		for x in grid_size.x:
+			if before[y][x] != tile_states[y][x]:
+				_animate_cell(x, y, float(tile_states[y][x]))
+
+func _animate_cell(x: int, y: int, target_value: float) -> void:
+	var tween := create_tween()
+	tween.tween_method(_set_visual_value.bind(x, y), visual_values[y][x], target_value, 0.25)
+
+func _set_visual_value(x: int, y: int, value: float) -> void:
+	visual_values[y][x] = value
+	queue_redraw()
 
 func is_solved() -> bool:
 	for y in grid_size.y:
@@ -95,7 +117,8 @@ func _draw() -> void:
 			)
 			var on: bool = tile_states[y][x] == 1
 			var matches_target: bool = tile_states[y][x] == target_states[y][x]
-			var fill_color: Color = Color(0.85, 0.85, 0.9) if on else Color(0.15, 0.15, 0.18)
+			var t: float = visual_values[y][x]
+			var fill_color: Color = Color(0.15, 0.15, 0.18).lerp(Color(0.85, 0.85, 0.9), t)
 			draw_rect(rect, fill_color, true)
 			var border_color: Color = Color(0.3, 0.9, 0.4) if matches_target else Color(0.6, 0.15, 0.15)
 			draw_rect(rect, border_color, false, 2.0)
