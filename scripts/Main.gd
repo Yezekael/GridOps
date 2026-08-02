@@ -3,6 +3,7 @@ extends Node2D
 const PuzzleGenerator := preload("res://scripts/PuzzleGenerator.gd")
 const CardHandScript := preload("res://scripts/CardHand.gd")
 const SoundManagerScript := preload("res://scripts/SoundManager.gd")
+const SaveManagerScript := preload("res://scripts/SaveManager.gd")
 
 const RUN_LENGTH := 6
 const SCRAMBLE_COUNT_BASE := 4
@@ -43,6 +44,8 @@ var replaying_solution: bool = false
 
 var rng := RandomNumberGenerator.new()
 var sound: Node
+var save_mgr: Node
+var stats_label: Label
 
 func _ready() -> void:
 	rng.randomize()
@@ -50,6 +53,10 @@ func _ready() -> void:
 	sound = Node.new()
 	sound.set_script(SoundManagerScript)
 	add_child(sound)
+
+	save_mgr = Node.new()
+	save_mgr.set_script(SaveManagerScript)
+	add_child(save_mgr)
 
 	grid = Node2D.new()
 	grid.set_script(load("res://scripts/GridManager.gd"))
@@ -110,6 +117,13 @@ func _ready() -> void:
 	solve_button.pressed.connect(_on_solve_pressed)
 	ui.add_child(solve_button)
 
+	stats_label = Label.new()
+	stats_label.position = Vector2(780, 120)
+	stats_label.add_theme_font_size_override("font_size", 14)
+	stats_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.65))
+	ui.add_child(stats_label)
+	_update_stats_label()
+
 	_start_new_run()
 
 func _start_new_run() -> void:
@@ -118,7 +132,24 @@ func _start_new_run() -> void:
 	last_pattern_name = ""
 	draft_label.visible = false
 	draft_hand.visible = false
+
+	save_mgr.data.total_runs += 1
+	save_mgr.save_data()
+	_update_stats_label()
+
 	_start_new_puzzle()
+
+func _update_stats_label() -> void:
+	var d: Dictionary = save_mgr.data
+	stats_label.text = "Best: Puzzle %d/%d\nRuns: %d  Wins: %d" % [
+		d.best_puzzle_reached, RUN_LENGTH, d.total_runs, d.runs_completed
+	]
+
+func _record_best_puzzle_reached() -> void:
+	if puzzle_index + 1 > save_mgr.data.best_puzzle_reached:
+		save_mgr.data.best_puzzle_reached = puzzle_index + 1
+		save_mgr.save_data()
+		_update_stats_label()
 
 func _grid_size_for_puzzle(index: int) -> Vector2i:
 	if index == RUN_LENGTH - 1:
@@ -258,9 +289,13 @@ func _consume_pending_card() -> void:
 	_update_labels()
 
 	if grid.is_solved():
+		_record_best_puzzle_reached()
 		if puzzle_index + 1 >= RUN_LENGTH:
 			status_label.text = "RUN COMPLETE!"
 			sound.play_chime([523.25, 659.25, 783.99, 1046.5], 0.14)
+			save_mgr.data.runs_completed += 1
+			save_mgr.save_data()
+			_update_stats_label()
 		else:
 			status_label.text = "Solved!"
 			sound.play_chime([523.25, 659.25, 783.99], 0.12)
@@ -269,6 +304,7 @@ func _consume_pending_card() -> void:
 		status_label.text = "Out of cards — run failed"
 		sound.play_chime([392.0, 293.66], 0.2)
 		solve_button.visible = true
+		_record_best_puzzle_reached()
 
 func _show_draft() -> void:
 	grid.visible = false
