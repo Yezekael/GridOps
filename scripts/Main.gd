@@ -358,9 +358,11 @@ func _on_card_selected(index: int) -> void:
 	var dmg_dealt: int = enemy_hp_before - combat.enemy_hp
 	if dmg_dealt > 0:
 		_spawn_floating_text(enemy_hp_bar.position + Vector2(150, 0), "-%d" % dmg_dealt, Color(1.0, 0.35, 0.35))
+		_flash_bar(enemy_hp_bar, Color(1.0, 0.4, 0.4))
 	var healed: int = combat.player_hp - player_hp_before
 	if healed > 0:
 		_spawn_floating_text(player_hp_bar.position + Vector2(150, 0), "+%d" % healed, Color(0.4, 1.0, 0.5))
+		_flash_bar(player_hp_bar, Color(0.5, 1.0, 0.6))
 
 	_refresh_combat_ui()
 	if combat.enemy_hp <= 0:
@@ -374,6 +376,7 @@ func _on_end_turn_pressed() -> void:
 	var taken: int = player_hp_before - combat.player_hp
 	if taken > 0:
 		_spawn_floating_text(player_hp_bar.position + Vector2(150, 0), "-%d" % taken, Color(1.0, 0.35, 0.35))
+		_flash_bar(player_hp_bar, Color(1.0, 0.4, 0.4))
 
 	if combat.player_hp <= 0:
 		_on_combat_lost()
@@ -394,6 +397,11 @@ func _spawn_floating_text(pos: Vector2, text: String, color: Color) -> void:
 	tween.tween_property(label, "modulate:a", 0.0, 0.6)
 	tween.set_parallel(false)
 	tween.tween_callback(label.queue_free)
+
+func _flash_bar(bar: ProgressBar, color: Color) -> void:
+	bar.modulate = color
+	var tween := create_tween()
+	tween.tween_property(bar, "modulate", Color(1.0, 1.0, 1.0), 0.3)
 
 func _on_combat_won() -> void:
 	_record_best_encounter_reached()
