@@ -16,6 +16,17 @@ const PATTERN_NAMES := [
 	"half_top", "corners", "diamond", "diagonal",
 ]
 
+const UPGRADES := [
+	{"id": "extra_invert", "label": "Extra Invert", "cost": 5, "card_type": "invert"},
+	{"id": "extra_swap", "label": "Extra Swap", "cost": 5, "card_type": "swap"},
+	{"id": "unlock_mirror_row", "label": "Unlock Mirror Row", "cost": 10, "card_type": "mirror_row"},
+	{"id": "unlock_mirror_col", "label": "Unlock Mirror Col", "cost": 10, "card_type": "mirror_col"},
+	{"id": "unlock_rotate180", "label": "Unlock Rotate 180", "cost": 12, "card_type": "rotate180"},
+	{"id": "unlock_invert_row", "label": "Unlock Invert Row", "cost": 12, "card_type": "invert_row"},
+	{"id": "unlock_invert_col", "label": "Unlock Invert Col", "cost": 12, "card_type": "invert_col"},
+	{"id": "unlock_transpose", "label": "Unlock Transpose", "cost": 15, "card_type": "transpose"},
+]
+
 var grid: Node2D
 var card_hand: HBoxContainer
 var status_label: Label
@@ -26,6 +37,11 @@ var new_run_button: Button
 
 var draft_label: Label
 var draft_hand: HBoxContainer
+
+var shop_label: Label
+var shop_hand: GridContainer
+var shop_button: Button
+var shop_was_showing_draft: bool = false
 
 var pending_card_index: int = -1
 var pending_card: Dictionary = {}
@@ -117,17 +133,40 @@ func _ready() -> void:
 	solve_button.pressed.connect(_on_solve_pressed)
 	ui.add_child(solve_button)
 
+	shop_button = Button.new()
+	shop_button.text = "Shop"
+	shop_button.position = Vector2(780, 120)
+	shop_button.custom_minimum_size = Vector2(140, 40)
+	shop_button.pressed.connect(_open_shop)
+	ui.add_child(shop_button)
+
 	stats_label = Label.new()
-	stats_label.position = Vector2(780, 120)
+	stats_label.position = Vector2(780, 170)
 	stats_label.add_theme_font_size_override("font_size", 14)
 	stats_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.65))
 	ui.add_child(stats_label)
 	_update_stats_label()
 
+	shop_label = Label.new()
+	shop_label.position = Vector2(300, 150)
+	shop_label.add_theme_font_size_override("font_size", 20)
+	shop_label.visible = false
+	ui.add_child(shop_label)
+
+	shop_hand = GridContainer.new()
+	shop_hand.position = Vector2(300, 210)
+	shop_hand.columns = 3
+	shop_hand.add_theme_constant_override("h_separation", 10)
+	shop_hand.add_theme_constant_override("v_separation", 10)
+	shop_hand.visible = false
+	ui.add_child(shop_hand)
+
 	_start_new_run()
 
 func _start_new_run() -> void:
 	run_deck = STARTING_DECK.duplicate()
+	for card_type in save_mgr.data.unlocked_starting_cards:
+		run_deck.append(card_type)
 	puzzle_index = 0
 	last_pattern_name = ""
 	draft_label.visible = false
@@ -141,8 +180,8 @@ func _start_new_run() -> void:
 
 func _update_stats_label() -> void:
 	var d: Dictionary = save_mgr.data
-	stats_label.text = "Best: Puzzle %d/%d\nRuns: %d  Wins: %d" % [
-		d.best_puzzle_reached, RUN_LENGTH, d.total_runs, d.runs_completed
+	stats_label.text = "Best: Puzzle %d/%d\nRuns: %d  Wins: %d\nCurrency: %d" % [
+		d.best_puzzle_reached, RUN_LENGTH, d.total_runs, d.runs_completed, int(d.currency)
 	]
 
 func _record_best_puzzle_reached() -> void:
@@ -290,13 +329,17 @@ func _consume_pending_card() -> void:
 
 	if grid.is_solved():
 		_record_best_puzzle_reached()
+		save_mgr.data.currency = int(save_mgr.data.currency) + 1
 		if puzzle_index + 1 >= RUN_LENGTH:
 			status_label.text = "RUN COMPLETE!"
 			sound.play_chime([523.25, 659.25, 783.99, 1046.5], 0.14)
 			save_mgr.data.runs_completed += 1
+			save_mgr.data.currency = int(save_mgr.data.currency) + 3
 			save_mgr.save_data()
 			_update_stats_label()
 		else:
+			save_mgr.save_data()
+			_update_stats_label()
 			status_label.text = "Solved!"
 			sound.play_chime([523.25, 659.25, 783.99], 0.12)
 			_show_draft()
@@ -366,6 +409,57 @@ func _on_card_removed(card_type: String) -> void:
 		run_deck.remove_at(idx)
 	sound.play_tone(250.0, 0.1)
 	_advance_after_draft()
+
+func _open_shop() -> void:
+	shop_was_showing_draft = draft_hand.visible
+	grid.visible = false
+	card_hand.visible = false
+	draft_label.visible = false
+	draft_hand.visible = false
+	_rebuild_shop()
+	shop_label.visible = true
+	shop_hand.visible = true
+
+func _close_shop() -> void:
+	shop_label.visible = false
+	shop_hand.visible = false
+	if shop_was_showing_draft:
+		_show_draft()
+	else:
+		grid.visible = true
+		card_hand.visible = true
+
+func _rebuild_shop() -> void:
+	for child in shop_hand.get_children():
+		child.queue_free()
+
+	var currency: int = int(save_mgr.data.currency)
+	shop_label.text = "Shop — Currency: %d (permanently added to your starting deck)" % currency
+
+	for upgrade in UPGRADES:
+		var btn := Button.new()
+		btn.text = "%s (%d)" % [upgrade.label, upgrade.cost]
+		btn.custom_minimum_size = Vector2(150, 50)
+		btn.disabled = currency < upgrade.cost
+		btn.pressed.connect(_on_upgrade_purchased.bind(upgrade))
+		shop_hand.add_child(btn)
+
+	var close_btn := Button.new()
+	close_btn.text = "Close"
+	close_btn.custom_minimum_size = Vector2(150, 50)
+	close_btn.pressed.connect(_close_shop)
+	shop_hand.add_child(close_btn)
+
+func _on_upgrade_purchased(upgrade: Dictionary) -> void:
+	var currency: int = int(save_mgr.data.currency)
+	if currency < upgrade.cost:
+		return
+	save_mgr.data.currency = currency - upgrade.cost
+	save_mgr.data.unlocked_starting_cards.append(upgrade.card_type)
+	save_mgr.save_data()
+	_update_stats_label()
+	sound.play_tone(700.0, 0.08)
+	_rebuild_shop()
 
 func _on_draft_picked(card_type: String) -> void:
 	sound.play_tone(600.0, 0.06)
