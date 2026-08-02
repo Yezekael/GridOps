@@ -10,6 +10,10 @@ var tile_states: Array = []
 var target_states: Array = []
 var visual_values: Array = []
 
+var hover_cell: Vector2i = Vector2i(-1, -1)
+var preview_card_type: String = ""
+var preview_first_click: Vector2i = Vector2i(-1, -1)
+
 func setup(size: Vector2i, initial: Array, target: Array) -> void:
 	grid_size = size
 	tile_states = initial.duplicate(true)
@@ -92,6 +96,29 @@ func is_solved() -> bool:
 				return false
 	return true
 
+func set_preview(card_type: String, first_click: Vector2i = Vector2i(-1, -1)) -> void:
+	preview_card_type = card_type
+	preview_first_click = first_click
+	queue_redraw()
+
+func clear_preview() -> void:
+	preview_card_type = ""
+	preview_first_click = Vector2i(-1, -1)
+	queue_redraw()
+
+func _is_cell_highlighted(x: int, y: int) -> bool:
+	match preview_card_type:
+		"invert":
+			return hover_cell == Vector2i(x, y)
+		"swap":
+			return hover_cell == Vector2i(x, y) or preview_first_click == Vector2i(x, y)
+		"mirror_row":
+			return hover_cell.x >= 0 and hover_cell.y == y
+		"mirror_col":
+			return hover_cell.y >= 0 and hover_cell.x == x
+		_:
+			return false
+
 func _draw() -> void:
 	if tile_states.is_empty():
 		return
@@ -120,6 +147,10 @@ func _draw() -> void:
 			var t: float = visual_values[y][x]
 			var fill_color: Color = Color(0.15, 0.15, 0.18).lerp(Color(0.85, 0.85, 0.9), t)
 			draw_rect(rect, fill_color, true)
+
+			if _is_cell_highlighted(x, y):
+				draw_rect(rect, Color(1.0, 0.85, 0.2, 0.35), true)
+
 			var border_color: Color = Color(0.3, 0.9, 0.4) if matches_target else Color(0.6, 0.15, 0.15)
 			draw_rect(rect, border_color, false, 2.0)
 
@@ -136,13 +167,23 @@ func _draw() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if tile_states.is_empty():
 		return
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var local_pos: Vector2 = to_local(event.position)
-		var step := float(TILE_SIZE + TILE_GAP)
-		var cell := Vector2i(int(local_pos.x / step), int(local_pos.y / step))
-		if cell.x < 0 or cell.x >= grid_size.x or cell.y < 0 or cell.y >= grid_size.y:
-			return
-		var offset_x: float = fmod(local_pos.x, step)
-		var offset_y: float = fmod(local_pos.y, step)
-		if offset_x <= TILE_SIZE and offset_y <= TILE_SIZE:
+	if event is InputEventMouseMotion:
+		var cell := _cell_at_local(to_local(event.position))
+		if cell != hover_cell:
+			hover_cell = cell
+			queue_redraw()
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var cell := _cell_at_local(to_local(event.position))
+		if cell.x >= 0:
 			tile_clicked.emit(cell.x, cell.y)
+
+func _cell_at_local(local_pos: Vector2) -> Vector2i:
+	var step := float(TILE_SIZE + TILE_GAP)
+	var cell := Vector2i(int(local_pos.x / step), int(local_pos.y / step))
+	if cell.x < 0 or cell.x >= grid_size.x or cell.y < 0 or cell.y >= grid_size.y:
+		return Vector2i(-1, -1)
+	var offset_x: float = fmod(local_pos.x, step)
+	var offset_y: float = fmod(local_pos.y, step)
+	if offset_x > TILE_SIZE or offset_y > TILE_SIZE:
+		return Vector2i(-1, -1)
+	return cell
