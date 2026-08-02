@@ -73,7 +73,7 @@ func _ready() -> void:
 
 	grid = Node2D.new()
 	grid.set_script(load("res://scripts/GridManager.gd"))
-	grid.position = Vector2(220, 120)
+	grid.position = Vector2(240, 150)
 	add_child(grid)
 	grid.tile_clicked.connect(_on_tile_clicked)
 

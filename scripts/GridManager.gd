@@ -122,11 +122,23 @@ func _is_cell_highlighted(x: int, y: int) -> bool:
 func _draw() -> void:
 	if tile_states.is_empty():
 		return
+
+	var font := ThemeDB.fallback_font
+	var font_size := 16
+	var step := TILE_SIZE + TILE_GAP
+
+	for x in grid_size.x:
+		var label_pos := Vector2(x * step + TILE_SIZE / 2.0 - 4, -12)
+		draw_string(font, label_pos, str(x + 1), HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(0.6, 0.6, 0.65))
+	for y in grid_size.y:
+		var label_pos := Vector2(-24, y * step + TILE_SIZE / 2.0 + 5)
+		draw_string(font, label_pos, str(y + 1), HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(0.6, 0.6, 0.65))
+
 	for y in grid_size.y:
 		for x in grid_size.x:
 			var rect := Rect2(
-				x * (TILE_SIZE + TILE_GAP),
-				y * (TILE_SIZE + TILE_GAP),
+				x * step,
+				y * step,
 				TILE_SIZE,
 				TILE_SIZE
 			)
