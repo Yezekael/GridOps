@@ -44,18 +44,21 @@ var energy_label: Label
 var progress_label: Label
 var new_run_button: Button
 
+var draft_view: CenterContainer
 var draft_label: Label
 var draft_hand: HBoxContainer
 
+var shop_view: CenterContainer
 var shop_label: Label
 var shop_hand: GridContainer
 var shop_button: Button
 
+var achievements_view: CenterContainer
 var achievements_label: Label
 var achievements_hand: GridContainer
 var achievements_button: Button
 
-var main_menu: Control
+var main_menu: CenterContainer
 var menu_title_label: Label
 var start_run_button: Button
 var quit_button: Button
@@ -150,18 +153,27 @@ func _ready() -> void:
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
 	combat_view.add_child(end_turn_button)
 
+	draft_view = CenterContainer.new()
+	draft_view.set_anchors_preset(Control.PRESET_FULL_RECT)
+	draft_view.visible = false
+	ui.add_child(draft_view)
+
+	var draft_vbox := VBoxContainer.new()
+	draft_vbox.add_theme_constant_override("separation", 16)
+	draft_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	draft_view.add_child(draft_vbox)
+
 	draft_label = Label.new()
-	draft_label.position = Vector2(300, 220)
 	draft_label.add_theme_font_size_override("font_size", 24)
 	draft_label.text = "Choose a card to add to your deck:"
-	draft_label.visible = false
-	ui.add_child(draft_label)
+	draft_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	draft_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	draft_vbox.add_child(draft_label)
 
 	draft_hand = HBoxContainer.new()
-	draft_hand.position = Vector2(300, 270)
 	draft_hand.add_theme_constant_override("separation", 10)
-	draft_hand.visible = false
-	ui.add_child(draft_hand)
+	draft_hand.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	draft_vbox.add_child(draft_hand)
 
 	new_run_button = Button.new()
 	new_run_button.text = "New Run"
@@ -191,70 +203,91 @@ func _ready() -> void:
 	ui.add_child(stats_label)
 	_update_stats_label()
 
+	shop_view = CenterContainer.new()
+	shop_view.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shop_view.visible = false
+	ui.add_child(shop_view)
+
+	var shop_vbox := VBoxContainer.new()
+	shop_vbox.add_theme_constant_override("separation", 16)
+	shop_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	shop_view.add_child(shop_vbox)
+
 	shop_label = Label.new()
-	shop_label.position = Vector2(300, 150)
 	shop_label.add_theme_font_size_override("font_size", 20)
-	shop_label.visible = false
-	ui.add_child(shop_label)
+	shop_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	shop_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	shop_vbox.add_child(shop_label)
 
 	shop_hand = GridContainer.new()
-	shop_hand.position = Vector2(300, 210)
 	shop_hand.columns = 3
 	shop_hand.add_theme_constant_override("h_separation", 10)
 	shop_hand.add_theme_constant_override("v_separation", 10)
-	shop_hand.visible = false
-	ui.add_child(shop_hand)
+	shop_hand.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	shop_vbox.add_child(shop_hand)
+
+	achievements_view = CenterContainer.new()
+	achievements_view.set_anchors_preset(Control.PRESET_FULL_RECT)
+	achievements_view.visible = false
+	ui.add_child(achievements_view)
+
+	var achievements_vbox := VBoxContainer.new()
+	achievements_vbox.add_theme_constant_override("separation", 16)
+	achievements_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	achievements_view.add_child(achievements_vbox)
 
 	achievements_label = Label.new()
-	achievements_label.position = Vector2(300, 150)
 	achievements_label.add_theme_font_size_override("font_size", 20)
 	achievements_label.text = "Achievements"
-	achievements_label.visible = false
-	ui.add_child(achievements_label)
+	achievements_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	achievements_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	achievements_vbox.add_child(achievements_label)
 
 	achievements_hand = GridContainer.new()
-	achievements_hand.position = Vector2(300, 190)
 	achievements_hand.columns = 2
 	achievements_hand.add_theme_constant_override("h_separation", 10)
 	achievements_hand.add_theme_constant_override("v_separation", 10)
-	achievements_hand.visible = false
-	ui.add_child(achievements_hand)
+	achievements_hand.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	achievements_vbox.add_child(achievements_hand)
 
-	main_menu = Control.new()
-	main_menu.position = Vector2.ZERO
+	main_menu = CenterContainer.new()
+	main_menu.set_anchors_preset(Control.PRESET_FULL_RECT)
 	ui.add_child(main_menu)
 
+	var menu_vbox := VBoxContainer.new()
+	menu_vbox.add_theme_constant_override("separation", 16)
+	menu_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	main_menu.add_child(menu_vbox)
+
 	menu_title_label = Label.new()
-	menu_title_label.position = Vector2(300, 220)
 	menu_title_label.add_theme_font_size_override("font_size", 40)
 	menu_title_label.text = "GridOps"
-	main_menu.add_child(menu_title_label)
+	menu_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	menu_title_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	menu_vbox.add_child(menu_title_label)
 
 	start_run_button = Button.new()
 	start_run_button.text = "Start Run"
-	start_run_button.position = Vector2(300, 300)
 	start_run_button.custom_minimum_size = Vector2(160, 50)
+	start_run_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	start_run_button.pressed.connect(_start_new_run)
-	main_menu.add_child(start_run_button)
+	menu_vbox.add_child(start_run_button)
 
 	quit_button = Button.new()
 	quit_button.text = "Quit"
-	quit_button.position = Vector2(300, 360)
 	quit_button.custom_minimum_size = Vector2(160, 50)
+	quit_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	quit_button.pressed.connect(_on_quit_pressed)
-	main_menu.add_child(quit_button)
+	menu_vbox.add_child(quit_button)
 
 	_show_main_menu()
 
 func _hide_all_views() -> void:
 	main_menu.visible = false
 	combat_view.visible = false
-	draft_label.visible = false
-	draft_hand.visible = false
-	shop_label.visible = false
-	shop_hand.visible = false
-	achievements_label.visible = false
-	achievements_hand.visible = false
+	draft_view.visible = false
+	shop_view.visible = false
+	achievements_view.visible = false
 
 func _show_main_menu() -> void:
 	_hide_all_views()
@@ -270,8 +303,7 @@ func _start_new_run() -> void:
 		run_deck.append(card_type)
 	encounter_index = 0
 	combat.player_hp = combat.player_max_hp
-	draft_label.visible = false
-	draft_hand.visible = false
+	draft_view.visible = false
 
 	save_mgr.data.total_runs += 1
 	save_mgr.save_data()
@@ -510,8 +542,7 @@ func _show_draft() -> void:
 		remove_btn.pressed.connect(_show_draft_removal_options)
 		draft_hand.add_child(remove_btn)
 
-	draft_label.visible = true
-	draft_hand.visible = true
+	draft_view.visible = true
 
 func _show_draft_removal_options() -> void:
 	draft_label.text = "Choose a card to remove from your deck:"
@@ -554,8 +585,7 @@ func _on_draft_skipped() -> void:
 
 func _advance_after_draft() -> void:
 	encounter_index += 1
-	draft_label.visible = false
-	draft_hand.visible = false
+	draft_view.visible = false
 	_start_new_encounter()
 
 func _pick_random_distinct(pool: Array, count: int) -> Array:
@@ -568,15 +598,14 @@ func _pick_random_distinct(pool: Array, count: int) -> Array:
 	return picked
 
 func _capture_view_before_overlay() -> void:
-	if not shop_label.visible and not achievements_label.visible:
+	if not shop_view.visible and not achievements_view.visible:
 		view_before_overlay = "menu" if main_menu.visible else "combat"
 
 func _open_shop() -> void:
 	_capture_view_before_overlay()
 	_hide_all_views()
 	_rebuild_shop()
-	shop_label.visible = true
-	shop_hand.visible = true
+	shop_view.visible = true
 
 func _close_shop() -> void:
 	_hide_all_views()
@@ -627,8 +656,7 @@ func _open_achievements() -> void:
 	_capture_view_before_overlay()
 	_hide_all_views()
 	_rebuild_achievements()
-	achievements_label.visible = true
-	achievements_hand.visible = true
+	achievements_view.visible = true
 
 func _close_achievements() -> void:
 	_hide_all_views()
