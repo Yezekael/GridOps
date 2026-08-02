@@ -27,7 +27,7 @@ func _default_data() -> Dictionary:
 	return {
 		"total_runs": 0,
 		"runs_completed": 0,
-		"best_puzzle_reached": 0,
+		"best_encounter_reached": 0,
 		"currency": 0,
 		"lifetime_currency_spent": 0,
 		"unlocked_starting_cards": [],

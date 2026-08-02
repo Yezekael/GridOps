@@ -16,14 +16,16 @@ func remove_card(index: int) -> void:
 	cards.remove_at(index)
 	_rebuild()
 
+func set_disabled(index: int, disabled: bool) -> void:
+	if index >= 0 and index < get_child_count():
+		get_child(index).disabled = disabled
+
 func _rebuild() -> void:
 	for child in get_children():
 		child.queue_free()
 	var count: int = cards.size()
 	var width: float = MAX_CARD_WIDTH
 	if count > 0:
-		# Later puzzles can deal up to 9 cards, which at full width would
-		# overflow the window. Shrink cards to fit a fixed budget instead.
 		width = min(MAX_CARD_WIDTH, (WIDTH_BUDGET - float(count - 1) * SEPARATION) / float(count))
 	for i in cards.size():
 		var btn := Button.new()
@@ -35,23 +37,23 @@ func _rebuild() -> void:
 func _on_pressed(index: int) -> void:
 	card_selected.emit(index)
 
-static func label_for(card: Dictionary) -> String:
-	match card.type:
-		"invert":
-			return "Invert"
-		"swap":
-			return "Swap"
-		"mirror_row":
-			return "Mirror Row"
-		"mirror_col":
-			return "Mirror Col"
-		"rotate180":
-			return "Rotate 180"
-		"invert_row":
-			return "Invert Row"
-		"invert_col":
-			return "Invert Col"
-		"transpose":
-			return "Transpose"
+static func label_for(card_type: String) -> String:
+	match card_type:
+		"strike":
+			return "Strike\n(1) 6 dmg"
+		"block":
+			return "Block\n(1) 5 blk"
+		"heal":
+			return "Heal\n(2) +8 hp"
+		"double_strike":
+			return "Double Strike\n(2) 4x2 dmg"
+		"big_strike":
+			return "Big Strike\n(2) 12 dmg"
+		"heavy_block":
+			return "Heavy Block\n(2) 10 blk"
+		"vampiric_strike":
+			return "Vampiric\n(2) 5 dmg +3hp"
+		"energy_potion":
+			return "Energy Potion\n(0) +1 energy"
 		_:
-			return card.type
+			return card_type
