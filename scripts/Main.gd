@@ -2,6 +2,7 @@ extends Node2D
 
 const PuzzleGenerator := preload("res://scripts/PuzzleGenerator.gd")
 const CardHandScript := preload("res://scripts/CardHand.gd")
+const SoundManagerScript := preload("res://scripts/SoundManager.gd")
 
 const GRID_SIZE := Vector2i(4, 4)
 const RUN_LENGTH := 6
@@ -86,9 +87,14 @@ var puzzle_token: int = 0
 var replaying_solution: bool = false
 
 var rng := RandomNumberGenerator.new()
+var sound: Node
 
 func _ready() -> void:
 	rng.randomize()
+
+	sound = Node.new()
+	sound.set_script(SoundManagerScript)
+	add_child(sound)
 
 	grid = Node2D.new()
 	grid.set_script(load("res://scripts/GridManager.gd"))
@@ -199,6 +205,7 @@ func _on_card_selected(index: int) -> void:
 	pending_clicks = []
 	if _targets_needed(pending_card.type) == 0:
 		grid.apply_card({"type": pending_card.type, "params": {}})
+		sound.play_tone(440.0, 0.08)
 		_consume_pending_card()
 
 func _on_tile_clicked(x: int, y: int) -> void:
@@ -223,6 +230,7 @@ func _on_tile_clicked(x: int, y: int) -> void:
 			params = {"col": pending_clicks[0].x}
 
 	grid.apply_card({"type": pending_card.type, "params": params})
+	sound.play_tone(440.0, 0.08)
 	_consume_pending_card()
 
 func _consume_pending_card() -> void:
@@ -235,11 +243,14 @@ func _consume_pending_card() -> void:
 	if grid.is_solved():
 		if puzzle_index + 1 >= RUN_LENGTH:
 			status_label.text = "RUN COMPLETE!"
+			sound.play_chime([523.25, 659.25, 783.99, 1046.5], 0.14)
 		else:
 			status_label.text = "Solved!"
+			sound.play_chime([523.25, 659.25, 783.99], 0.12)
 			_show_draft()
 	elif card_hand.cards.is_empty():
 		status_label.text = "Out of cards — run failed"
+		sound.play_chime([392.0, 293.66], 0.2)
 		solve_button.visible = true
 
 func _show_draft() -> void:
@@ -266,10 +277,12 @@ func _show_draft() -> void:
 	draft_hand.visible = true
 
 func _on_draft_picked(card_type: String) -> void:
+	sound.play_tone(600.0, 0.06)
 	run_deck.append(card_type)
 	_advance_after_draft()
 
 func _on_draft_skipped() -> void:
+	sound.play_tone(300.0, 0.06)
 	_advance_after_draft()
 
 func _advance_after_draft() -> void:
