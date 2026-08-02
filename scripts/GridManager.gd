@@ -56,12 +56,38 @@ func rotate180() -> void:
 	tile_states = new_states
 	queue_redraw()
 
+func invert_row(row: int) -> void:
+	for x in grid_size.x:
+		tile_states[row][x] = 1 - tile_states[row][x]
+	queue_redraw()
+
+func invert_col(col: int) -> void:
+	for y in grid_size.y:
+		tile_states[y][col] = 1 - tile_states[y][col]
+	queue_redraw()
+
+func transpose() -> void:
+	# Assumes a square grid (always true here). Only swap the upper
+	# triangle so each pair is exchanged exactly once.
+	for y in grid_size.y:
+		for x in range(y + 1, grid_size.x):
+			var tmp = tile_states[y][x]
+			tile_states[y][x] = tile_states[x][y]
+			tile_states[x][y] = tmp
+	queue_redraw()
+
 func apply_card(card: Dictionary) -> void:
 	match card.type:
 		"invert":
 			invert(card.params.x, card.params.y)
 		"swap":
 			swap(card.params.x1, card.params.y1, card.params.x2, card.params.y2)
+		"invert_row":
+			invert_row(card.params.row)
+		"invert_col":
+			invert_col(card.params.col)
+		"transpose":
+			transpose()
 		"mirror_row":
 			mirror_row(card.params.row)
 		"mirror_col":

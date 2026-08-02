@@ -224,6 +224,10 @@ func _on_tile_clicked(x: int, y: int) -> void:
 			params = {"row": pending_clicks[0].y}
 		"mirror_col":
 			params = {"col": pending_clicks[0].x}
+		"invert_row":
+			params = {"row": pending_clicks[0].y}
+		"invert_col":
+			params = {"col": pending_clicks[0].x}
 
 	grid.apply_card({"type": pending_card.type, "params": params})
 	sound.play_tone(440.0, 0.08)
@@ -333,6 +337,12 @@ func _targets_needed(card_type: String) -> int:
 		"mirror_col":
 			return 1
 		"rotate180":
+			return 0
+		"invert_row":
+			return 1
+		"invert_col":
+			return 1
+		"transpose":
 			return 0
 		_:
 			return 0

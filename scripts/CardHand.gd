@@ -47,5 +47,11 @@ static func label_for(card: Dictionary) -> String:
 			return "Mirror Col"
 		"rotate180":
 			return "Rotate 180"
+		"invert_row":
+			return "Invert Row"
+		"invert_col":
+			return "Invert Col"
+		"transpose":
+			return "Transpose"
 		_:
 			return card.type
