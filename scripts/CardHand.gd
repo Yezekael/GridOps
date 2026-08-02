@@ -22,6 +22,7 @@ func set_disabled(index: int, disabled: bool) -> void:
 
 func _rebuild() -> void:
 	for child in get_children():
+		remove_child(child)
 		child.queue_free()
 	var count: int = cards.size()
 	var width: float = MAX_CARD_WIDTH

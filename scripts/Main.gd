@@ -222,6 +222,7 @@ func _start_new_run() -> void:
 	for card_type in save_mgr.data.unlocked_starting_cards:
 		run_deck.append(card_type)
 	encounter_index = 0
+	combat.player_hp = combat.player_max_hp
 	draft_label.visible = false
 	draft_hand.visible = false
 
