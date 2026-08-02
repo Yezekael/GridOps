@@ -175,7 +175,6 @@ func _start_new_puzzle() -> void:
 	solve_button.disabled = false
 	grid.visible = true
 	card_hand.visible = true
-	grid.clear_preview()
 
 	var pattern_index: int = rng.randi_range(0, TARGET_PATTERNS.size() - 1)
 	if TARGET_PATTERNS.size() > 1:
@@ -204,22 +203,16 @@ func _on_card_selected(index: int) -> void:
 	pending_card_index = index
 	pending_card = card_hand.cards[index]
 	pending_clicks = []
-	var needed: int = _targets_needed(pending_card.type)
-	if needed == 0:
+	if _targets_needed(pending_card.type) == 0:
 		grid.apply_card({"type": pending_card.type, "params": {}})
 		sound.play_tone(440.0, 0.08)
 		_consume_pending_card()
-	else:
-		grid.set_preview(pending_card.type)
 
 func _on_tile_clicked(x: int, y: int) -> void:
 	if pending_card.is_empty():
 		return
 	pending_clicks.append(Vector2i(x, y))
-	var needed: int = _targets_needed(pending_card.type)
-	if pending_clicks.size() < needed:
-		if pending_card.type == "swap":
-			grid.set_preview("swap", pending_clicks[0])
+	if pending_clicks.size() < _targets_needed(pending_card.type):
 		return
 
 	var params: Dictionary = {}
@@ -237,7 +230,6 @@ func _on_tile_clicked(x: int, y: int) -> void:
 			params = {"col": pending_clicks[0].x}
 
 	grid.apply_card({"type": pending_card.type, "params": params})
-	grid.clear_preview()
 	sound.play_tone(440.0, 0.08)
 	_consume_pending_card()
 
