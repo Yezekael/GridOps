@@ -33,7 +33,11 @@ func _rebuild() -> void:
 		btn.text = label_for(cards[i])
 		btn.custom_minimum_size = Vector2(width, 60)
 		btn.pressed.connect(_on_pressed.bind(i))
+		btn.pivot_offset = Vector2(width / 2.0, 30)
+		btn.scale = Vector2(0.8, 0.8)
 		add_child(btn)
+		var tween := create_tween()
+		tween.tween_property(btn, "scale", Vector2(1.0, 1.0), 0.15)
 
 func _on_pressed(index: int) -> void:
 	card_selected.emit(index)
