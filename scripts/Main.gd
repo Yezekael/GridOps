@@ -349,20 +349,51 @@ func _refresh_combat_ui() -> void:
 func _on_card_selected(index: int) -> void:
 	if not combat.can_play(index):
 		return
+	var enemy_hp_before: int = combat.enemy_hp
+	var player_hp_before: int = combat.player_hp
 	if not combat.play_card(index):
 		return
 	sound.play_tone(440.0, 0.08)
+
+	var dmg_dealt: int = enemy_hp_before - combat.enemy_hp
+	if dmg_dealt > 0:
+		_spawn_floating_text(enemy_hp_bar.position + Vector2(150, 0), "-%d" % dmg_dealt, Color(1.0, 0.35, 0.35))
+	var healed: int = combat.player_hp - player_hp_before
+	if healed > 0:
+		_spawn_floating_text(player_hp_bar.position + Vector2(150, 0), "+%d" % healed, Color(0.4, 1.0, 0.5))
+
 	_refresh_combat_ui()
 	if combat.enemy_hp <= 0:
 		_on_combat_won()
 
 func _on_end_turn_pressed() -> void:
+	var player_hp_before: int = combat.player_hp
 	combat.end_turn()
 	sound.play_tone(300.0, 0.1)
+
+	var taken: int = player_hp_before - combat.player_hp
+	if taken > 0:
+		_spawn_floating_text(player_hp_bar.position + Vector2(150, 0), "-%d" % taken, Color(1.0, 0.35, 0.35))
+
 	if combat.player_hp <= 0:
 		_on_combat_lost()
 	else:
 		_refresh_combat_ui()
+
+func _spawn_floating_text(pos: Vector2, text: String, color: Color) -> void:
+	var label := Label.new()
+	label.text = text
+	label.position = pos
+	label.add_theme_font_size_override("font_size", 22)
+	label.add_theme_color_override("font_color", color)
+	combat_view.add_child(label)
+
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(label, "position:y", pos.y - 30, 0.6)
+	tween.tween_property(label, "modulate:a", 0.0, 0.6)
+	tween.set_parallel(false)
+	tween.tween_callback(label.queue_free)
 
 func _on_combat_won() -> void:
 	_record_best_encounter_reached()
