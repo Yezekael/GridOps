@@ -6,7 +6,7 @@ extends RefCounted
 # sequence in reverse — regardless of whether the ops overlap or commute.
 const CARD_TYPES := ["invert", "swap", "mirror_row", "mirror_col", "rotate180"]
 
-static func generate(grid_size: Vector2i, target: Array, scramble_count: int, rng: RandomNumberGenerator) -> Dictionary:
+static func generate(grid_size: Vector2i, target: Array, scramble_count: int, rng: RandomNumberGenerator, available_types: Array = CARD_TYPES) -> Dictionary:
 	# A scramble can accidentally cancel itself out (e.g. rotate180 drawn
 	# twice, or mirror_row on the same row twice), leaving the puzzle
 	# already solved. Reject and retry those instead of dealing a dead hand.
@@ -20,7 +20,7 @@ static func generate(grid_size: Vector2i, target: Array, scramble_count: int, rn
 
 		scramble_ops = []
 		for i in range(scramble_count):
-			var op := _random_op(grid_size, rng)
+			var op := _random_op(grid_size, rng, available_types)
 			_apply_op(state, grid_size, op)
 			scramble_ops.append(op)
 
@@ -34,8 +34,8 @@ static func generate(grid_size: Vector2i, target: Array, scramble_count: int, rn
 		"hand": scramble_ops,
 	}
 
-static func _random_op(grid_size: Vector2i, rng: RandomNumberGenerator) -> Dictionary:
-	var type: String = CARD_TYPES[rng.randi_range(0, CARD_TYPES.size() - 1)]
+static func _random_op(grid_size: Vector2i, rng: RandomNumberGenerator, available_types: Array) -> Dictionary:
+	var type: String = available_types[rng.randi_range(0, available_types.size() - 1)]
 	match type:
 		"invert":
 			return {

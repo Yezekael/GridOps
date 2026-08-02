@@ -4,23 +4,55 @@ const PuzzleGenerator := preload("res://scripts/PuzzleGenerator.gd")
 const CardHandScript := preload("res://scripts/CardHand.gd")
 
 const GRID_SIZE := Vector2i(4, 4)
-const SCRAMBLE_COUNT := 6
-const TARGET_PATTERN := [
-	[1, 0, 0, 1],
-	[0, 1, 1, 0],
-	[0, 1, 1, 0],
-	[1, 0, 0, 1],
+const RUN_LENGTH := 6
+const SCRAMBLE_COUNT_BASE := 4
+const SCRAMBLE_COUNT_CAP := 9
+const STARTING_DECK := ["invert", "invert", "swap"]
+
+const TARGET_PATTERNS := [
+	[
+		[1, 0, 0, 1],
+		[0, 1, 1, 0],
+		[0, 1, 1, 0],
+		[1, 0, 0, 1],
+	],
+	[
+		[1, 0, 1, 0],
+		[0, 1, 0, 1],
+		[1, 0, 1, 0],
+		[0, 1, 0, 1],
+	],
+	[
+		[1, 1, 1, 1],
+		[1, 0, 0, 1],
+		[1, 0, 0, 1],
+		[1, 1, 1, 1],
+	],
+	[
+		[1, 1, 0, 0],
+		[1, 1, 0, 0],
+		[1, 1, 0, 0],
+		[1, 1, 0, 0],
+	],
 ]
 
 var grid: Node2D
 var card_hand: HBoxContainer
 var status_label: Label
 var moves_label: Label
+var progress_label: Label
 var solve_button: Button
+var new_run_button: Button
+
+var draft_label: Label
+var draft_hand: HBoxContainer
 
 var pending_card_index: int = -1
 var pending_card: Dictionary = {}
 var pending_clicks: Array = []
+
+var run_deck: Array = []
+var puzzle_index: int = 0
 
 var original_initial: Array = []
 var solution_ops: Array = []
@@ -41,13 +73,18 @@ func _ready() -> void:
 	var ui := CanvasLayer.new()
 	add_child(ui)
 
+	progress_label = Label.new()
+	progress_label.position = Vector2(20, 20)
+	progress_label.add_theme_font_size_override("font_size", 24)
+	ui.add_child(progress_label)
+
 	moves_label = Label.new()
-	moves_label.position = Vector2(20, 20)
+	moves_label.position = Vector2(20, 55)
 	moves_label.add_theme_font_size_override("font_size", 24)
 	ui.add_child(moves_label)
 
 	status_label = Label.new()
-	status_label.position = Vector2(20, 60)
+	status_label.position = Vector2(20, 90)
 	status_label.add_theme_font_size_override("font_size", 24)
 	ui.add_child(status_label)
 
@@ -58,12 +95,25 @@ func _ready() -> void:
 	ui.add_child(card_hand)
 	card_hand.card_selected.connect(_on_card_selected)
 
-	var new_puzzle_button := Button.new()
-	new_puzzle_button.text = "New Puzzle"
-	new_puzzle_button.position = Vector2(780, 20)
-	new_puzzle_button.custom_minimum_size = Vector2(140, 40)
-	new_puzzle_button.pressed.connect(_start_new_puzzle)
-	ui.add_child(new_puzzle_button)
+	draft_label = Label.new()
+	draft_label.position = Vector2(300, 220)
+	draft_label.add_theme_font_size_override("font_size", 24)
+	draft_label.text = "Choose a card to add to your deck:"
+	draft_label.visible = false
+	ui.add_child(draft_label)
+
+	draft_hand = HBoxContainer.new()
+	draft_hand.position = Vector2(300, 270)
+	draft_hand.add_theme_constant_override("separation", 10)
+	draft_hand.visible = false
+	ui.add_child(draft_hand)
+
+	new_run_button = Button.new()
+	new_run_button.text = "New Run"
+	new_run_button.position = Vector2(780, 20)
+	new_run_button.custom_minimum_size = Vector2(140, 40)
+	new_run_button.pressed.connect(_start_new_run)
+	ui.add_child(new_run_button)
 
 	solve_button = Button.new()
 	solve_button.text = "Show Solution"
@@ -73,6 +123,13 @@ func _ready() -> void:
 	solve_button.pressed.connect(_on_solve_pressed)
 	ui.add_child(solve_button)
 
+	_start_new_run()
+
+func _start_new_run() -> void:
+	run_deck = STARTING_DECK.duplicate()
+	puzzle_index = 0
+	draft_label.visible = false
+	draft_hand.visible = false
 	_start_new_puzzle()
 
 func _start_new_puzzle() -> void:
@@ -83,16 +140,22 @@ func _start_new_puzzle() -> void:
 	pending_clicks = []
 	solve_button.visible = false
 	solve_button.disabled = false
+	grid.visible = true
+	card_hand.visible = true
 
-	var result: Dictionary = PuzzleGenerator.generate(GRID_SIZE, TARGET_PATTERN, SCRAMBLE_COUNT, rng)
+	var target: Array = TARGET_PATTERNS[puzzle_index % TARGET_PATTERNS.size()]
+	var scramble_count: int = min(SCRAMBLE_COUNT_BASE + puzzle_index, SCRAMBLE_COUNT_CAP)
+	var result: Dictionary = PuzzleGenerator.generate(GRID_SIZE, target, scramble_count, rng, run_deck)
+
 	original_initial = []
 	for row in result.initial:
 		original_initial.append(row.duplicate(true))
 	solution_ops = result.hand.duplicate(true)
 
-	grid.setup(GRID_SIZE, result.initial, TARGET_PATTERN)
+	grid.setup(GRID_SIZE, result.initial, target)
 	card_hand.set_hand(result.hand)
 	status_label.text = ""
+	progress_label.text = "Puzzle %d / %d" % [puzzle_index + 1, RUN_LENGTH]
 	_update_labels()
 
 func _on_card_selected(index: int) -> void:
@@ -137,10 +200,47 @@ func _consume_pending_card() -> void:
 	_update_labels()
 
 	if grid.is_solved():
-		status_label.text = "SOLVED!"
+		if puzzle_index + 1 >= RUN_LENGTH:
+			status_label.text = "RUN COMPLETE!"
+		else:
+			status_label.text = "Solved!"
+			_show_draft()
 	elif card_hand.cards.is_empty():
-		status_label.text = "Out of cards — failed"
+		status_label.text = "Out of cards — run failed"
 		solve_button.visible = true
+
+func _show_draft() -> void:
+	grid.visible = false
+	card_hand.visible = false
+
+	var offered: Array = _pick_random_distinct(PuzzleGenerator.CARD_TYPES, 3)
+	for child in draft_hand.get_children():
+		child.queue_free()
+	for card_type in offered:
+		var btn := Button.new()
+		btn.text = CardHandScript.label_for({"type": card_type})
+		btn.custom_minimum_size = Vector2(120, 60)
+		btn.pressed.connect(_on_draft_picked.bind(card_type))
+		draft_hand.add_child(btn)
+
+	draft_label.visible = true
+	draft_hand.visible = true
+
+func _on_draft_picked(card_type: String) -> void:
+	run_deck.append(card_type)
+	puzzle_index += 1
+	draft_label.visible = false
+	draft_hand.visible = false
+	_start_new_puzzle()
+
+func _pick_random_distinct(pool: Array, count: int) -> Array:
+	var remaining: Array = pool.duplicate()
+	var picked: Array = []
+	for i in range(min(count, remaining.size())):
+		var idx: int = rng.randi_range(0, remaining.size() - 1)
+		picked.append(remaining[idx])
+		remaining.remove_at(idx)
+	return picked
 
 func _on_solve_pressed() -> void:
 	if replaying_solution:
@@ -152,10 +252,11 @@ func _on_solve_pressed() -> void:
 	pending_clicks = []
 
 	var token := puzzle_token
+	var target: Array = TARGET_PATTERNS[puzzle_index % TARGET_PATTERNS.size()]
 	var replay_state: Array = []
 	for row in original_initial:
 		replay_state.append(row.duplicate(true))
-	grid.setup(GRID_SIZE, replay_state, TARGET_PATTERN)
+	grid.setup(GRID_SIZE, replay_state, target)
 	status_label.text = "Replaying solution..."
 
 	for op in solution_ops:
@@ -166,7 +267,7 @@ func _on_solve_pressed() -> void:
 
 	if token != puzzle_token:
 		return
-	status_label.text = "Solution replayed — tap New Puzzle to try another"
+	status_label.text = "Solution replayed — tap New Run to try again"
 
 func _targets_needed(card_type: String) -> int:
 	match card_type:
