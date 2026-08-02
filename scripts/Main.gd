@@ -50,12 +50,17 @@ var draft_hand: HBoxContainer
 var shop_label: Label
 var shop_hand: GridContainer
 var shop_button: Button
-var shop_was_showing_combat: bool = false
 
 var achievements_label: Label
 var achievements_hand: GridContainer
 var achievements_button: Button
-var achievements_was_showing_combat: bool = false
+
+var main_menu: Control
+var menu_title_label: Label
+var start_run_button: Button
+var quit_button: Button
+
+var view_before_overlay: String = "menu"
 
 var run_deck: Array = []
 var encounter_index: int = 0
@@ -215,9 +220,41 @@ func _ready() -> void:
 	achievements_hand.visible = false
 	ui.add_child(achievements_hand)
 
-	_start_new_run()
+	main_menu = Control.new()
+	main_menu.position = Vector2.ZERO
+	ui.add_child(main_menu)
+
+	menu_title_label = Label.new()
+	menu_title_label.position = Vector2(300, 220)
+	menu_title_label.add_theme_font_size_override("font_size", 40)
+	menu_title_label.text = "GridOps"
+	main_menu.add_child(menu_title_label)
+
+	start_run_button = Button.new()
+	start_run_button.text = "Start Run"
+	start_run_button.position = Vector2(300, 300)
+	start_run_button.custom_minimum_size = Vector2(160, 50)
+	start_run_button.pressed.connect(_start_new_run)
+	main_menu.add_child(start_run_button)
+
+	quit_button = Button.new()
+	quit_button.text = "Quit"
+	quit_button.position = Vector2(300, 360)
+	quit_button.custom_minimum_size = Vector2(160, 50)
+	quit_button.pressed.connect(_on_quit_pressed)
+	main_menu.add_child(quit_button)
+
+	_show_main_menu()
+
+func _show_main_menu() -> void:
+	combat_view.visible = false
+	main_menu.visible = true
+
+func _on_quit_pressed() -> void:
+	get_tree().quit()
 
 func _start_new_run() -> void:
+	main_menu.visible = false
 	run_deck = STARTING_DECK.duplicate()
 	for card_type in save_mgr.data.unlocked_starting_cards:
 		run_deck.append(card_type)
@@ -520,7 +557,8 @@ func _pick_random_distinct(pool: Array, count: int) -> Array:
 	return picked
 
 func _open_shop() -> void:
-	shop_was_showing_combat = combat_view.visible
+	view_before_overlay = "menu" if main_menu.visible else "combat"
+	main_menu.visible = false
 	combat_view.visible = false
 	draft_label.visible = false
 	draft_hand.visible = false
@@ -531,7 +569,7 @@ func _open_shop() -> void:
 func _close_shop() -> void:
 	shop_label.visible = false
 	shop_hand.visible = false
-	combat_view.visible = shop_was_showing_combat
+	_restore_previous_view()
 
 func _rebuild_shop() -> void:
 	for child in shop_hand.get_children():
@@ -575,7 +613,8 @@ func _on_upgrade_purchased(upgrade: Dictionary) -> void:
 		_unlock_achievement("collector")
 
 func _open_achievements() -> void:
-	achievements_was_showing_combat = combat_view.visible
+	view_before_overlay = "menu" if main_menu.visible else "combat"
+	main_menu.visible = false
 	combat_view.visible = false
 	draft_label.visible = false
 	draft_hand.visible = false
@@ -586,7 +625,13 @@ func _open_achievements() -> void:
 func _close_achievements() -> void:
 	achievements_label.visible = false
 	achievements_hand.visible = false
-	combat_view.visible = achievements_was_showing_combat
+	_restore_previous_view()
+
+func _restore_previous_view() -> void:
+	if view_before_overlay == "menu":
+		main_menu.visible = true
+	else:
+		combat_view.visible = true
 
 func _rebuild_achievements() -> void:
 	for child in achievements_hand.get_children():
