@@ -34,6 +34,30 @@ const TARGET_PATTERNS := [
 		[1, 1, 0, 0],
 		[1, 1, 0, 0],
 	],
+	[
+		[1, 1, 1, 1],
+		[1, 1, 1, 1],
+		[0, 0, 0, 0],
+		[0, 0, 0, 0],
+	],
+	[
+		[1, 0, 0, 1],
+		[0, 0, 0, 0],
+		[0, 0, 0, 0],
+		[1, 0, 0, 1],
+	],
+	[
+		[0, 1, 1, 0],
+		[1, 1, 1, 1],
+		[1, 1, 1, 1],
+		[0, 1, 1, 0],
+	],
+	[
+		[1, 0, 0, 0],
+		[0, 1, 0, 0],
+		[0, 0, 1, 0],
+		[0, 0, 0, 1],
+	],
 ]
 
 var grid: Node2D
@@ -53,6 +77,8 @@ var pending_clicks: Array = []
 
 var run_deck: Array = []
 var puzzle_index: int = 0
+var current_target: Array = []
+var last_pattern_index: int = -1
 
 var original_initial: Array = []
 var solution_ops: Array = []
@@ -128,6 +154,7 @@ func _ready() -> void:
 func _start_new_run() -> void:
 	run_deck = STARTING_DECK.duplicate()
 	puzzle_index = 0
+	last_pattern_index = -1
 	draft_label.visible = false
 	draft_hand.visible = false
 	_start_new_puzzle()
@@ -143,16 +170,22 @@ func _start_new_puzzle() -> void:
 	grid.visible = true
 	card_hand.visible = true
 
-	var target: Array = TARGET_PATTERNS[puzzle_index % TARGET_PATTERNS.size()]
+	var pattern_index: int = rng.randi_range(0, TARGET_PATTERNS.size() - 1)
+	if TARGET_PATTERNS.size() > 1:
+		while pattern_index == last_pattern_index:
+			pattern_index = rng.randi_range(0, TARGET_PATTERNS.size() - 1)
+	last_pattern_index = pattern_index
+	current_target = TARGET_PATTERNS[pattern_index]
+
 	var scramble_count: int = min(SCRAMBLE_COUNT_BASE + puzzle_index, SCRAMBLE_COUNT_CAP)
-	var result: Dictionary = PuzzleGenerator.generate(GRID_SIZE, target, scramble_count, rng, run_deck)
+	var result: Dictionary = PuzzleGenerator.generate(GRID_SIZE, current_target, scramble_count, rng, run_deck)
 
 	original_initial = []
 	for row in result.initial:
 		original_initial.append(row.duplicate(true))
 	solution_ops = result.hand.duplicate(true)
 
-	grid.setup(GRID_SIZE, result.initial, target)
+	grid.setup(GRID_SIZE, result.initial, current_target)
 	card_hand.set_hand(result.hand)
 	status_label.text = ""
 	progress_label.text = "Puzzle %d / %d" % [puzzle_index + 1, RUN_LENGTH]
@@ -252,11 +285,10 @@ func _on_solve_pressed() -> void:
 	pending_clicks = []
 
 	var token := puzzle_token
-	var target: Array = TARGET_PATTERNS[puzzle_index % TARGET_PATTERNS.size()]
 	var replay_state: Array = []
 	for row in original_initial:
 		replay_state.append(row.duplicate(true))
-	grid.setup(GRID_SIZE, replay_state, target)
+	grid.setup(GRID_SIZE, replay_state, current_target)
 	status_label.text = "Replaying solution..."
 
 	for op in solution_ops:
