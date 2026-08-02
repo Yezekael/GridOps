@@ -16,10 +16,16 @@ var grid: Node2D
 var card_hand: HBoxContainer
 var status_label: Label
 var moves_label: Label
+var solve_button: Button
 
 var pending_card_index: int = -1
 var pending_card: Dictionary = {}
 var pending_clicks: Array = []
+
+var original_initial: Array = []
+var solution_ops: Array = []
+var puzzle_token: int = 0
+var replaying_solution: bool = false
 
 var rng := RandomNumberGenerator.new()
 
@@ -59,14 +65,31 @@ func _ready() -> void:
 	new_puzzle_button.pressed.connect(_start_new_puzzle)
 	ui.add_child(new_puzzle_button)
 
+	solve_button = Button.new()
+	solve_button.text = "Show Solution"
+	solve_button.position = Vector2(780, 70)
+	solve_button.custom_minimum_size = Vector2(140, 40)
+	solve_button.visible = false
+	solve_button.pressed.connect(_on_solve_pressed)
+	ui.add_child(solve_button)
+
 	_start_new_puzzle()
 
 func _start_new_puzzle() -> void:
+	puzzle_token += 1
+	replaying_solution = false
 	pending_card_index = -1
 	pending_card = {}
 	pending_clicks = []
+	solve_button.visible = false
+	solve_button.disabled = false
 
 	var result: Dictionary = PuzzleGenerator.generate(GRID_SIZE, TARGET_PATTERN, SCRAMBLE_COUNT, rng)
+	original_initial = []
+	for row in result.initial:
+		original_initial.append(row.duplicate(true))
+	solution_ops = result.hand.duplicate(true)
+
 	grid.setup(GRID_SIZE, result.initial, TARGET_PATTERN)
 	card_hand.set_hand(result.hand)
 	status_label.text = ""
@@ -117,6 +140,33 @@ func _consume_pending_card() -> void:
 		status_label.text = "SOLVED!"
 	elif card_hand.cards.is_empty():
 		status_label.text = "Out of cards — failed"
+		solve_button.visible = true
+
+func _on_solve_pressed() -> void:
+	if replaying_solution:
+		return
+	replaying_solution = true
+	solve_button.disabled = true
+	pending_card_index = -1
+	pending_card = {}
+	pending_clicks = []
+
+	var token := puzzle_token
+	var replay_state: Array = []
+	for row in original_initial:
+		replay_state.append(row.duplicate(true))
+	grid.setup(GRID_SIZE, replay_state, TARGET_PATTERN)
+	status_label.text = "Replaying solution..."
+
+	for op in solution_ops:
+		await get_tree().create_timer(0.6).timeout
+		if token != puzzle_token:
+			return
+		grid.apply_card(op)
+
+	if token != puzzle_token:
+		return
+	status_label.text = "Solution replayed — tap New Puzzle to try another"
 
 func _targets_needed(card_type: String) -> int:
 	match card_type:
