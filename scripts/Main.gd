@@ -4,6 +4,7 @@ const CombatManagerScript := preload("res://scripts/CombatManager.gd")
 const CardHandScript := preload("res://scripts/CardHand.gd")
 const SoundManagerScript := preload("res://scripts/SoundManager.gd")
 const SaveManagerScript := preload("res://scripts/SaveManager.gd")
+const EnemySpriteScript := preload("res://scripts/EnemySprite.gd")
 
 const TOTAL_ACTS := 3
 const ACT_LENGTH := 6
@@ -41,6 +42,7 @@ var player_label: Label
 var player_hp_bar: ProgressBar
 var enemy_label: Label
 var enemy_hp_bar: ProgressBar
+var enemy_sprite: Node2D
 var intent_label: Label
 
 var status_label: Label
@@ -136,6 +138,11 @@ func _ready() -> void:
 	enemy_hp_bar.custom_minimum_size = Vector2(320, 20)
 	enemy_hp_bar.show_percentage = false
 	combat_view.add_child(enemy_hp_bar)
+
+	enemy_sprite = Node2D.new()
+	enemy_sprite.set_script(EnemySpriteScript)
+	enemy_sprite.position = Vector2(680, 230)
+	combat_view.add_child(enemy_sprite)
 
 	intent_label = Label.new()
 	intent_label.position = Vector2(240, 300)
@@ -350,6 +357,7 @@ func _enemy_config_for_encounter(index: int) -> Dictionary:
 		var boss_name: String = BOSS_NAMES[act_index] if act_index < BOSS_NAMES.size() else "Warlord"
 		return {
 			"name": boss_name,
+			"sprite": "boss",
 			"hp": int(70 * act_mult),
 			"intents": [
 				{"type": "attack", "damage": int(8 * act_mult)},
@@ -366,12 +374,14 @@ func _enemy_config_for_encounter(index: int) -> Dictionary:
 		0:
 			return {
 				"name": prefix + "Grunt",
+				"sprite": "grunt",
 				"hp": base_hp,
 				"intents": [{"type": "attack", "damage": base_dmg}],
 			}
 		1:
 			return {
 				"name": prefix + "Skirmisher",
+				"sprite": "skirmisher",
 				"hp": base_hp,
 				"intents": [
 					{"type": "attack", "damage": max(1, base_dmg - 2)},
@@ -381,6 +391,7 @@ func _enemy_config_for_encounter(index: int) -> Dictionary:
 		2:
 			return {
 				"name": prefix + "Guardian",
+				"sprite": "guardian",
 				"hp": base_hp + 6,
 				"intents": [
 					{"type": "attack", "damage": base_dmg},
@@ -390,6 +401,7 @@ func _enemy_config_for_encounter(index: int) -> Dictionary:
 		3:
 			return {
 				"name": prefix + "Regenerator",
+				"sprite": "regenerator",
 				"hp": base_hp,
 				"intents": [
 					{"type": "attack", "damage": base_dmg},
@@ -399,6 +411,7 @@ func _enemy_config_for_encounter(index: int) -> Dictionary:
 		_:
 			return {
 				"name": prefix + "Berserker",
+				"sprite": "berserker",
 				"hp": base_hp,
 				"intents": [{"type": "attack", "damage": base_dmg}],
 				"rage_per_turn": max(1, int(3 * act_mult)),
@@ -415,6 +428,7 @@ func _start_new_encounter() -> void:
 
 	var act_index: int = encounter_index / ACT_LENGTH
 	var local_index: int = encounter_index % ACT_LENGTH
+	enemy_sprite.set_archetype(enemy_config.get("sprite", "grunt"), act_index)
 	if _is_boss_encounter(encounter_index):
 		progress_label.text = "Act %d — Fight %d/%d — BOSS FIGHT" % [act_index + 1, local_index + 1, ACT_LENGTH]
 		progress_label.add_theme_color_override("font_color", Color(0.9, 0.3, 0.3))
