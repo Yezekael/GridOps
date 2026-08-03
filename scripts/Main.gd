@@ -5,6 +5,7 @@ const CardHandScript := preload("res://scripts/CardHand.gd")
 const SoundManagerScript := preload("res://scripts/SoundManager.gd")
 const SaveManagerScript := preload("res://scripts/SaveManager.gd")
 const EnemySpriteScript := preload("res://scripts/EnemySprite.gd")
+const PlayerSpriteScript := preload("res://scripts/PlayerSprite.gd")
 
 const TOTAL_ACTS := 3
 const ACT_LENGTH := 6
@@ -40,6 +41,7 @@ var end_turn_button: Button
 
 var player_label: Label
 var player_hp_bar: ProgressBar
+var player_sprite: Node2D
 var enemy_label: Label
 var enemy_hp_bar: ProgressBar
 var enemy_sprite: Node2D
@@ -127,6 +129,11 @@ func _ready() -> void:
 	player_hp_bar.custom_minimum_size = Vector2(320, 20)
 	player_hp_bar.show_percentage = false
 	combat_view.add_child(player_hp_bar)
+
+	player_sprite = Node2D.new()
+	player_sprite.set_script(PlayerSpriteScript)
+	player_sprite.position = Vector2(150, 230)
+	combat_view.add_child(player_sprite)
 
 	enemy_label = Label.new()
 	enemy_label.position = Vector2(240, 230)
@@ -441,6 +448,7 @@ func _refresh_combat_ui() -> void:
 	player_hp_bar.max_value = combat.player_max_hp
 	player_hp_bar.value = combat.player_hp
 	player_label.text = "You: %d/%d HP  (Block: %d)" % [combat.player_hp, combat.player_max_hp, combat.player_block]
+	player_sprite.set_block(combat.player_block)
 
 	enemy_hp_bar.max_value = combat.enemy_max_hp
 	enemy_hp_bar.value = combat.enemy_hp
@@ -471,6 +479,7 @@ func _on_card_selected(index: int) -> void:
 	if healed > 0:
 		_spawn_floating_text(player_hp_bar.position + Vector2(150, 0), "+%d" % healed, Color(0.4, 1.0, 0.5))
 		_flash_bar(player_hp_bar, Color(0.5, 1.0, 0.6))
+		player_sprite.heal_flash()
 
 	_refresh_combat_ui()
 	if combat.enemy_hp <= 0:
@@ -485,6 +494,7 @@ func _on_end_turn_pressed() -> void:
 	if taken > 0:
 		_spawn_floating_text(player_hp_bar.position + Vector2(150, 0), "-%d" % taken, Color(1.0, 0.35, 0.35))
 		_flash_bar(player_hp_bar, Color(1.0, 0.4, 0.4))
+		player_sprite.hit_flash()
 
 	if combat.player_hp <= 0:
 		_on_combat_lost()
