@@ -4,6 +4,7 @@ var archetype: String = "grunt"
 var act_index: int = 0
 var bob_time: float = 0.0
 var base_y: float = 0.0
+var base_x: float = 0.0
 
 func set_archetype(new_archetype: String, new_act_index: int) -> void:
 	archetype = new_archetype
@@ -12,10 +13,21 @@ func set_archetype(new_archetype: String, new_act_index: int) -> void:
 
 func _ready() -> void:
 	base_y = position.y
+	base_x = position.x
 
 func _process(delta: float) -> void:
 	bob_time += delta
 	position.y = base_y + sin(bob_time * 2.0) * 4.0
+
+func hit_flash() -> void:
+	modulate = Color(1.6, 1.6, 1.6)
+	var mod_tween := create_tween()
+	mod_tween.tween_property(self, "modulate", Color(1, 1, 1), 0.25)
+
+	var shake_tween := create_tween()
+	shake_tween.tween_property(self, "position:x", base_x - 8, 0.04)
+	shake_tween.tween_property(self, "position:x", base_x + 8, 0.04)
+	shake_tween.tween_property(self, "position:x", base_x, 0.04)
 
 func _rank_color(base: Color) -> Color:
 	return base.lightened(act_index * 0.15)

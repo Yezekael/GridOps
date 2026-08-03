@@ -466,6 +466,7 @@ func _on_card_selected(index: int) -> void:
 	if dmg_dealt > 0:
 		_spawn_floating_text(enemy_hp_bar.position + Vector2(150, 0), "-%d" % dmg_dealt, Color(1.0, 0.35, 0.35))
 		_flash_bar(enemy_hp_bar, Color(1.0, 0.4, 0.4))
+		enemy_sprite.hit_flash()
 	var healed: int = combat.player_hp - player_hp_before
 	if healed > 0:
 		_spawn_floating_text(player_hp_bar.position + Vector2(150, 0), "+%d" % healed, Color(0.4, 1.0, 0.5))
